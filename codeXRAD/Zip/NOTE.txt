@@ -1,0 +1,3 @@
+NOTE
+====
+ZIP functions require DotNetZip 1.16.0 NuGet packet (Author: Henrik/Dino Chiesa).
