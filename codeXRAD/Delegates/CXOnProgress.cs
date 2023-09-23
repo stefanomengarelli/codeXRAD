@@ -6,9 +6,9 @@
  *  Author:     Stefano Mengarelli  
  *  E-mail:     info@stefanomengarelli.it
  *  
- *  Copyright (C) 2022 by Stefano Mengarelli - All rights reserved - Use, permission and restrictions under license.
+ *  Copyright (C) 2023 by Stefano Mengarelli - All rights reserved - Use, permission and restrictions under license.
  *
- *  codeXRAD delegates.
+ *  codeXRAD delegate method for progress event. 
  *
  *  ------------------------------------------------------------------------
  */
@@ -18,17 +18,7 @@ namespace codeXRAD
 
     /* */
 
-    /// <summary>CXOnCompare delegate.</summary>
-    public delegate int CXOnCompare(object _A, object _B);
-
-    /* */
-
-    /// <summary>CXOnDoEvents delegate.</summary>
-    public delegate void CXOnDoEvents();
-
-    /* */
-
-    /// <summary>CXOnProgress delegate.</summary>
+    /// <summary>Delegate method for progress event.</summary>
     public delegate void CXOnProgress(double _Percent, ref bool _Stop);
 
     /* */
