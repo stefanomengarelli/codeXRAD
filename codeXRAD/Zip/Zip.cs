@@ -8,8 +8,8 @@
  *  
  *  Copyright (C) 2023 by Stefano Mengarelli - All rights reserved - Use, permission and restrictions under license.
  *
- *  codeXRAD zip compression and decompression functions using 
- *  third-party component DotNetZip library 1.16.0
+ *  codeXRAD zip compression and decompression functions require third-party 
+ *  DotNetZip 1.16.0 NuGet packet (Author: Henrik/Dino Chiesa).
  *
  *  ------------------------------------------------------------------------
  */
@@ -21,7 +21,7 @@ namespace codeXRAD
 
     /* */
 
-    /// <summary>codeXRAD zip compression and decompression functions using third-party component DotNetZip library 1.16.0.</summary>
+    /// <summary>codeXRAD zip compression and decompression functions require third-party DotNetZip 1.16.0 NuGet packet (Author: Henrik/Dino Chiesa).</summary>
     public static partial class CX
     {
 
