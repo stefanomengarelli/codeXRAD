@@ -1,3 +1,4 @@
+using codeXRAD;
 namespace codeXRAD.Win
 {
     internal static class Program
@@ -11,6 +12,7 @@ namespace codeXRAD.Win
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
+            CX.Initialize();
             Application.Run(new Form1());
         }
     }

@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "codeXRAD", "codeXRAD.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "codeXRAD.Win", "..\codeXRAD.Win\codeXRAD.Win.csproj", "{7F6F15CF-492C-47ED-8F56-4784BABE366D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "codeXRAD.Web", "..\codeXRAD.Web\codeXRAD.Web.csproj", "{1AD74AEC-CB03-4EB6-9A5C-EF6FF170FE28}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "codeXRAD.Web", "..\codeXRAD.Web\codeXRAD.Web.csproj", "{1AD74AEC-CB03-4EB6-9A5C-EF6FF170FE28}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
