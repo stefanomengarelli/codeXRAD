@@ -1,6 +1,6 @@
 /*  ------------------------------------------------------------------------
  *  
- *  File:       XPath.cs
+ *  File:       Path.cs
  *  Version:    1.0.0
  *  Date:       September 2023
  *  Author:     Stefano Mengarelli  
@@ -45,40 +45,22 @@ namespace codeXRAD
         /// <summary>Initialize path static class environment.</summary>
         static public void InitializePath()
         {
-            //
-            // System paths
-            //
-            CommonApplicationData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.CommonApplicationData);
-            Desktop = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop);
-            Documents = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal);
-            ProgramFiles = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ProgramFiles);
-            Windows = System.Environment.SystemDirectory;
-            UserApplicationData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
-            Executable = FilePath(System.Windows.Forms.Application.ExecutablePath);
-            //
-            // System related paths
-            //
-            OEM = ForcePath(Combine(CommonApplicationData, XApplication.Company, ""));
-            PrintMerge = ForcePath(Combine(CommonApplicationData, "PrintMerge", ""));
-            Ultramarine = ForcePath(Combine(CommonApplicationData, "Microrun Ultramarine System", ""));
-            //
-            // Executable related paths
-            //
-            Library = Combine(Executable, "Library", "");
-            //
-            // Library related paths
-            //
-            LibraryDatabase = Combine(Library, "Database", "");
-            LibraryDocuments = Combine(Library, "Documents", "");
-            LibraryFonts = Combine(Library, "Fonts", "");
-            LibraryHelp = Combine(Library, "Help", "");
-            LibraryInstall = Combine(Library, "Install", "");
-            LibraryResources = Combine(Library, "Resources", "");
-            LibrarySystem = Combine(Library, "System", "");
-            //
-            // Set application work paths
-            //
-            SetApplicationWorkPaths(OEM, XApplication.Product);
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+            if (assembly != null)
+            {
+                ExecutableName = assembly.GetName().Name;
+                ExecutablePath = FilePath(assembly.Location);
+            }
+            else
+            {
+                ExecutableName = "";
+                ExecutablePath = "";
+            }
+            CommonPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            if (Empty(OEM)) ApplicationPath = ForcePath(Combine(CommonPath, ExecutableName));
+            else ApplicationPath = ForcePath(Combine(Combine(CommonPath, OEM, ""), ExecutableName));
+            DataPath = Combine(ApplicationPath, "Data");
+            TempPath = ForcePath(Combine(ApplicationPath, "Temp"));
         }
 
         #endregion
@@ -92,86 +74,24 @@ namespace codeXRAD
          *  --------------------------------------------------------------------
          */
 
-        /// <summary>Get or set application work path.</summary>
-        public static string Application { get; set; }
+        /// <summary>Get or set application path.</summary>
+        public static string ApplicationPath { get; set; }
 
-        /// <summary>Get or set application backup path.</summary>
-        public static string Backup { get; set; }
+        /// <summary>Get or set common path.</summary>
+        public static string CommonPath { get; set; }
 
-        /// <summary>Get or set OEM common data path.</summary>
-        public static string Common { get; set; }
+        /// <summary>Get or set data path.</summary>
+        public static string DataPath { get; set; }
 
-        /// <summary>Get or set system common application data path.</summary>
-        public static string CommonApplicationData { get; set; }
+        /// <summary>Get or set executable name without extension.</summary>
+        public static string ExecutableName { get; set; }
 
-        /// <summary>Get or set application configuration path.</summary>
-        public static string Config { get; set; }
+        /// <summary>Get or set executable path.</summary>
+        public static string ExecutablePath { get; set; }
 
-        /// <summary>Get or set application data path.</summary>
-        public static string Data { get; set; }
+        /// <summary>Get or set temporary path.</summary>
+        public static string TempPath { get; set; } = "";
 
-        /// <summary>Get or set system desktop path.</summary>
-        public static string Desktop { get; set; }
-
-        /// <summary>Get or set system user documents path.</summary>
-        public static string Documents { get; set; }
-
-        /// <summary>Get or set application download path.</summary>
-        public static string Download { get; set; }
-
-        /// <summary>Get or set system executable path without file name.</summary>
-        public static string Executable { get; set; }
-
-        /// <summary>Get or set executable default library path.</summary>
-        public static string Library { get; set; }
-
-        /// <summary>Get or set executable default library path database subfolder.</summary>
-        public static string LibraryDatabase { get; set; }
-
-        /// <summary>Get or set executable default library path documens subfolder.</summary>
-        public static string LibraryDocuments { get; set; }
-
-        /// <summary>Get or set executable default library path fonts subfolder.</summary>
-        public static string LibraryFonts { get; set; }
-
-        /// <summary>Get or set executable default library path help subfolder.</summary>
-        public static string LibraryHelp { get; set; }
-
-        /// <summary>Get or set executable default library path install subfolder.</summary>
-        public static string LibraryInstall { get; set; }
-
-        /// <summary>Get or set executable default library path resources subfolder.</summary>
-        public static string LibraryResources { get; set; }
-
-        /// <summary>Get or set executable default library path system subfolder.</summary>
-        public static string LibrarySystem { get; set; }
-
-        /// <summary>Get or set application log path.</summary>
-        public static string Log { get; set; }
-
-        /// <summary>Get or set OEM common application path.</summary>
-        public static string OEM { get; set; }
-
-        /// <summary>Get or set system printmerge path.</summary>
-        public static string PrintMerge { get; set; }
-
-        /// <summary>Get or set system program files path.</summary>
-        public static string ProgramFiles { get; set; }
-
-        /// <summary>Get or set application temp path.</summary>
-        public static string Temp { get; set; }
-
-        /// <summary>Get or set microrun ultramarine system reserved common path.</summary>
-        public static string Ultramarine { get; set; }
-
-        /// <summary>Get or set application ugprade path.</summary>
-        public static string Upgrade { get; set; }
-
-        /// <summary>Get or set system user related application data path.</summary>
-        public static string UserApplicationData { get; set; }
-
-        /// <summary>Get or set system Windows(r) path.</summary>
-        public static string Windows { get; set; }
 
         #endregion
 
@@ -185,7 +105,7 @@ namespace codeXRAD
          */
 
         /// <summary>Returns a string containing full path of file name, in file path directory and with file extension.</summary>
-        static public string Combine(string _FilePath, string _FileName, string _FileExtension)
+        static public string Combine(string _FilePath, string _FileName, string _FileExtension = "")
         {
             string p = FixPath(_FilePath), f = FileName(_FileName).Trim(), e = _FileExtension.Trim();
             if (p != "")
@@ -265,6 +185,42 @@ namespace codeXRAD
             return Merge(_Path1, _Path2, TrailingChar);
         }
 
+        /// <summary>Return full path of file name, on application folder.</summary>
+        static public string OnApplicationPath(string _FileName)
+        {
+            return Combine(ApplicationPath, _FileName);
+        }
+
+        /// <summary>Return full path of file name, on application subfolder.</summary>
+        static public string OnApplicationPath(string _SubFolder, string _FileName)
+        {
+            return Combine(Combine(ApplicationPath, _SubFolder), _FileName);
+        }
+
+        /// <summary>Return full path of file name, on library folder.</summary>
+        static public string OnLibraryPath(string _FileName)
+        {
+            return Combine(Combine(ExecutablePath, "Library"), _FileName);
+        }
+
+        /// <summary>Return full path of file name, on library subfolder.</summary>
+        static public string OnLibraryPath(string _SubFolder, string _FileName)
+        {
+            return Combine(Combine(Combine(ExecutablePath, "Library"), _SubFolder), _FileName);
+        }
+
+        /// <summary>Return full path of file name, on data folder.</summary>
+        static public string OnDataPath(string _FileName)
+        {
+            return Combine(ForcePath(DataPath), _FileName);
+        }
+
+        /// <summary>Return full path of file name, on data subfolder.</summary>
+        static public string OnDataPath(string _SubFolder, string _FileName)
+        {
+            return Combine(Combine(ForcePath(DataPath), _SubFolder), _FileName);
+        }
+
         /// <summary>Remove from file path, initial base path if found.</summary>
         static public string RemoveBase(string _FilePath, string _BasePath)
         {
@@ -278,57 +234,22 @@ namespace codeXRAD
             else return _FilePath;
         }
 
-        /// <summary>Set application work paths.</summary>
-        static public void SetApplicationWorkPaths(string _OEM, string _Product)
-        {
-            //
-            // OEM related paths
-            //
-            Application = ForcePath(Combine(_OEM, _Product, ""));
-            Common = ForcePath(Combine(_OEM, "Common files", ""));
-            //
-            // Application related paths
-            //
-            Backup = ForcePath(Combine(Application, "Backup", ""));
-            Config = ForcePath(Combine(Application, "Config", ""));
-            if (Debug) Debug = ForcePath(Combine(Application, "Debug", ""));
-            Download = ForcePath(Combine(Application, "Download", ""));
-            Log = ForcePath(Combine(Application, "Log", ""));
-            Temp = ForcePath(Combine(Application, "Temp", ""));
-            Upgrade = ForcePath(Combine(Application, "Upgrade", ""));
-            //
-            // Default ini path
-            //
-            XIni.DefaultExecutable = _Product;
-            //
-            // Application data path
-            //
-            XDatabase.DefaultExecutable = _Product;
-            Data = XIni.QuickRead("", "SETUP", "DATA_PATH", ForcePath(Combine(Application, "Data", "")));
-        }
-
         /// <summary>Returns a random temporary file full path with extension.</summary>
         static public string TempFile(string _Extension)
         {
-            return Combine(Temp, "~" + RndName(7), _Extension);
+            return Combine(TempPath, "~" + RndName(7), _Extension);
         }
 
         /// <summary>Returns a temporary ini file with full path with extension.</summary>
         static public string TempIniFile(string _FileNameWithoutExtension)
         {
-            return Combine(Temp, _FileNameWithoutExtension, "ini");
+            return Combine(TempPath, _FileNameWithoutExtension, "ini");
         }
 
         /// <summary>Delete on temp path temporary files matches ~*.*</summary>
         static public bool WipeTemp()
         {
-            return FilesDelete(Combine(Temp, "~*.*", ""));
-        }
-
-        /// <summary>Delete all files in upgrade path.</summary>
-        public static bool WipeUpgrade()
-        {
-            return FilesDelete(Combine(Upgrade, "*.*", ""));
+            return FilesDelete(Combine(TempPath, "~*.*", ""));
         }
 
         #endregion

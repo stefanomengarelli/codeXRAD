@@ -33,14 +33,8 @@ namespace codeXRAD
          *  --------------------------------------------------------------------
          */
 
-        /// <summary>Initialize static instance values.</summary>
-        static public void Initialize()
-        {
-            //Initialize(@"XRad", "", null);
-        }
-
         /// <summary>Initialize static instance values with custom OEM identifier.</summary>
-        static public void Initialize(string _Company, string _Product, string[] _Arguments)
+        static public void Initialize(string[] _Arguments = null, string _OEM = "")
         {
             //Ini ini;
             if (!Initialized && !Initializing)
@@ -51,6 +45,7 @@ namespace codeXRAD
                 //
                 Arguments = _Arguments;
                 InternalPassword = @"MNG5FN:c0d3#XR4D";
+                OEM = _OEM;
                 //
                 // Core classes initializations
                 //
@@ -105,6 +100,10 @@ namespace codeXRAD
                 //XHelp.Initialize();
                 //XTextViewer.Recents = null;
                 //
+                // Cleaning operation and maintenance
+                //
+                WipeTemp();
+                //
                 // End of initialization
                 //
                 Initializing = false;
@@ -147,13 +146,16 @@ namespace codeXRAD
         }
 
         /// <summary>Ultramarine static core class initialized flag.</summary>
-        public static bool Initialized { get; private set; } = false;
+        public static bool Initialized { get; private set; }
 
         /// <summary>Ultramarine static core class initializing flag.</summary>
-        public static bool Initializing { get; private set; } = false;
+        public static bool Initializing { get; private set; }
 
         /// <summary>Generic internal password.</summary>
-        public static string InternalPassword { get; set; } = "";
+        public static string InternalPassword { get; set; }
+
+        /// <summary>OEM id.</summary>
+        public static string OEM { get; set; }
 
         /// <summary>Internal resources.</summary>
         // public static XResources Resources { get; set; } = null;

@@ -1,3 +1,5 @@
+using codeXRAD;
+
 namespace codeXRAD.Web
 {
     public class Program
@@ -27,6 +29,8 @@ namespace codeXRAD.Web
             app.UseAuthorization();
 
             app.MapRazorPages();
+
+            CX.Initialize(args);
 
             app.Run();
         }
