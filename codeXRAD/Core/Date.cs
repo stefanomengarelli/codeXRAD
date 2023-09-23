@@ -336,16 +336,16 @@ namespace codeXRAD
         /// <summary>Returns string fixed to properly represent date value with 
         /// format and including time as specified, or empty string if is empty 
         /// or represent an invalid date.</summary>
-        static public string Fix(string _String, CXDateFormat _Format, bool _IncludeTime)
+        static public string FixDate(string _String, CXDateFormat _Format, bool _IncludeTime)
         {
             return Str(Date(_String, _Format, _IncludeTime), _Format, _IncludeTime);
         }
 
         /// <summary>Returns string fixed to properly represent date value without time, 
         /// or empty string if is empty or represent an invalid date.</summary>
-        static public string Fix(string _String)
+        static public string FixDate(string _String)
         {
-            return Fix(_String, DateFormat, false);
+            return FixDate(_String, DateFormat, false);
         }
 
         /// <summary>Returns string fixed to properly represent time value,

@@ -13,6 +13,8 @@
  *  ------------------------------------------------------------------------
  */
 
+using System.Diagnostics;
+
 namespace codeXRAD
 {
 
@@ -49,11 +51,6 @@ namespace codeXRAD
                 //
                 Arguments = _Arguments;
                 InternalPassword = @"MNG5FN:c0d3#XR4D";
-#if DEBUG
-                Debug = true;
-#else
-                Debug = false;
-#endif                
                 //
                 // Core classes initializations
                 //
@@ -61,6 +58,9 @@ namespace codeXRAD
                 InitializeMath();
                 InitializeErrors();
                 InitializeDate();
+                InitializeIO();
+                InitializeSystem();
+                InitializePath();
                 ////
                 //// RAD classes initializations
                 ////
@@ -146,9 +146,6 @@ namespace codeXRAD
             } 
         }
 
-        /// <summary>Ultramarine static core debug mode flag.</summary>
-        public static bool Debug { get; private set; } = false;
-
         /// <summary>Ultramarine static core class initialized flag.</summary>
         public static bool Initialized { get; private set; } = false;
 
@@ -183,6 +180,12 @@ namespace codeXRAD
          *  Methods
          *  --------------------------------------------------------------------
          */
+
+        /// <summary>Return true if debugger attached.</summary>
+        public static bool IsDebug()
+        {
+            return Debugger.IsAttached;
+        }
 
         #endregion
 
