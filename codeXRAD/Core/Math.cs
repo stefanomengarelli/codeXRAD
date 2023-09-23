@@ -394,6 +394,17 @@ namespace codeXRAD
         }
 
         /// <summary>Returns percent value related to max.</summary>
+        static public int Percent(long _Value, long _Max)
+        {
+            int r;
+            if (_Max == 0) r = 0;
+            else r = Convert.ToInt32(_Value * 100 / _Max);
+            if (r < 0) r = 0;
+            else if (r > 100) r = 100;
+            return r;
+        }
+
+        /// <summary>Returns percent value related to max.</summary>
         static public int Percent(long _Value, long _Max, bool _MaxTo100)
         {
             int r;
