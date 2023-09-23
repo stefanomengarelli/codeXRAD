@@ -56,15 +56,12 @@ namespace codeXRAD
                 InitializeIO();
                 InitializeSystem();
                 InitializePath();
+                InitializeUniqueId();
                 ////
                 //// RAD classes initializations
                 ////
                 //XLocalization.Initialize();
                 //XApplication.Initialize(_Company, _Product); // To be completed...
-                //XIO.Initialize();
-                //XSystem.Initialize();
-                //XPath.Initialize();
-                //XUniqueId.Initialize();
                 //XZip.Initialize();
                 //XCSV.Initialize();
                 //XForm.Initialize();
