@@ -57,6 +57,7 @@ namespace codeXRAD
                 InitializeSystem();
                 InitializePath();
                 InitializeUniqueId();
+                InitializeCSV();
                 ////
                 //// RAD classes initializations
                 ////
