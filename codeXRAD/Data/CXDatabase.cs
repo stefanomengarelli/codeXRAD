@@ -13,8 +13,12 @@
  *  ------------------------------------------------------------------------
  */
 
+using MySql.Data.MySqlClient;
+using Npgsql;
 using System.ComponentModel;
 using System.Data;
+using System.Data.OleDb;
+using System.Data.SqlClient;
 
 namespace codeXRAD
 {
@@ -114,6 +118,11 @@ namespace codeXRAD
                     if (OleDB != null) return OleDB.State == ConnectionState.Open;
                     else return false;
                 }
+                else if (Type == CXDatabaseType.PostgreSQL)
+                {
+                    if (PostgreDB != null) return PostgreDB.State == ConnectionState.Open;
+                    else return false;
+                }
                 else return false;
             }
             set
@@ -169,6 +178,10 @@ namespace codeXRAD
         [Browsable(true)]
         [Description("Specifies database path.")]
         public string Path { get; set; }
+
+        /// <summary>Indicated used connection form PostgreSQL database type.</summary>
+        [Browsable(false)]
+        public NpgsqlConnection PostgreDB { get; set; }
 
         /// <summary>Indicated used connection form Sql database type.</summary>
         [Browsable(false)]
@@ -277,6 +290,7 @@ namespace codeXRAD
             Host = "";
             MySqlDB = null;
             OleDB = null;
+            PostgreDB = null;
             Password = "";
             Path = "";
             SqlDB = null;
@@ -337,6 +351,22 @@ namespace codeXRAD
                 CX.Error(ex);
             }
             //
+            // close postgresql connection
+            //
+            try
+            {
+                if (PostgreDB != null)
+                {
+                    if (PostgreDB.State != ConnectionState.Closed) PostgreDB.Close();
+                    PostgreDB.Dispose();
+                    PostgreDB = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                CX.Error(ex);
+            }
+            //
             // check if closed
             //
             return !this.Active;
@@ -348,7 +378,7 @@ namespace codeXRAD
             string r = "";
             if (Type == CXDatabaseType.Access)
             {
-                r = "Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + XPath.Combine(Path, Database, "mdb") + ";";
+                r = "Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + CX.Combine(Path, Database, "mdb") + ";";
                 if (Password.Trim().Length > 0) r += "Jet OLEDB:Database Password=" + Password + ";";
             }
             else if (Type == CXDatabaseType.Sql)
@@ -363,7 +393,11 @@ namespace codeXRAD
             }
             else if (Type == CXDatabaseType.DBase4)
             {
-                r = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + XPath.Combine(Path, Database, "dbf") + ";Extended Properties=dBASE IV;User ID=Admin;Password=;";
+                r = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + CX.Combine(Path, Database, "dbf") + ";Extended Properties=dBASE IV;User ID=Admin;Password=;";
+            }
+            else if (Type == CXDatabaseType.PostgreSQL)
+            {
+                r = "Server=" + Host + ";Port=5432;Database=" + Database + ";User Id=" + User + ";Password=" + Password + ";"
             }
             return r;
         }
@@ -448,6 +482,11 @@ namespace codeXRAD
                                     OleDB = new OleDbConnection(s);
                                     OleDB.Open();
                                 }
+                            }
+                            else if (Type == CXDatabaseType.PostgreSQL)
+                            {
+                                PostgreDB = new NpgsqlConnection(s);
+                                PostgreDB.Open();
                             }
                             else
                             {
@@ -758,6 +797,7 @@ namespace codeXRAD
             else if (_DatabaseType == CXDatabaseType.Sql) return "SQLSVR";
             else if (_DatabaseType == CXDatabaseType.MySql) return "MYSQL";
             else if (_DatabaseType == CXDatabaseType.DBase4) return "DBASE4";
+            else if (_DatabaseType == CXDatabaseType.PostgreSQL) return "POSTGRESQL";
             else return "";
         }
 
