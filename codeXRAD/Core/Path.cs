@@ -186,7 +186,7 @@ namespace codeXRAD
         }
 
         /// <summary>Return full path of file name, on application folder.</summary>
-        static public string OnApplicationPath(string _FileName)
+        static public string OnApplicationPath(string _FileName = "")
         {
             return Combine(ApplicationPath, _FileName);
         }
@@ -198,7 +198,7 @@ namespace codeXRAD
         }
 
         /// <summary>Return full path of file name, on library folder.</summary>
-        static public string OnLibraryPath(string _FileName)
+        static public string OnLibraryPath(string _FileName = "")
         {
             return Combine(Combine(ExecutablePath, "Library"), _FileName);
         }
@@ -210,7 +210,7 @@ namespace codeXRAD
         }
 
         /// <summary>Return full path of file name, on data folder.</summary>
-        static public string OnDataPath(string _FileName)
+        static public string OnDataPath(string _FileName = "")
         {
             return Combine(ForcePath(DataPath), _FileName);
         }
