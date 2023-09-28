@@ -52,6 +52,15 @@ namespace codeXRAD
         /// <summary>Vocals.</summary>
         public const string Vocals = @"AEIOU";
 
+        /// <summary>Ultimi parametri elaborati.</summary>
+        private static string parametersLast;
+
+        /// <summary>Ultimo dizionario parametri.</summary>
+        private static CXDictionary parametersDictionary;
+
+        /// <summary>Separatore di parametri.</summary>
+        private static char parametersSeparator;
+
         #endregion
 
         /* */
@@ -69,6 +78,9 @@ namespace codeXRAD
             CR = "\r\n";
             DecimalSeparator = ',';
             MemoTrimChars = new char[] { ' ', '\t', '\r', '\n' };
+            parametersDictionary = new CXDictionary() { IgnoreCase = true, Sorted = false };
+            parametersLast = "";
+            parametersSeparator = ';';
             TextEncoding = Encoding.Default;
             ThousandSeparator = '.';
             TrailingChar = '\\';
@@ -1105,6 +1117,126 @@ namespace codeXRAD
             }
         }
 
+        /// <summary>Carica il dictionary passato con i parametri ed i valori contenuti nella stringa originale.</summary>
+        public static int ParametersDictionary(string _ParameterStr)
+        {
+            int i = 0;
+            char c;
+            bool q = false, t = false, b = false;
+            StringBuilder p = new StringBuilder(), v = new StringBuilder();
+            if (_ParameterStr != parametersLast)
+            {
+                parametersDictionary.Clear();
+                parametersLast = "";
+                if (!Empty(_ParameterStr))
+                {
+                    while (i < _ParameterStr.Length)
+                    {
+                        c = _ParameterStr[i];
+                        // caso di acquisizione del valore
+                        if (b)
+                        {
+                            if (!t && (c == '"')) q = !q;
+                            else if (t) v.Append(c);
+                            else if (c == '\\') t = true;
+                            else if (q) v.Append(c);
+                            else if (c == parametersSeparator)
+                            {
+                                if (p.Length > 0) parametersDictionary.Add(new CXDictionaryItem(p.ToString(), v.ToString(), null));
+                                p.Clear();
+                                b = false;
+                                while ((++i < _ParameterStr.Length) && (_ParameterStr[i] == ' ')) ;
+                                i--;
+                            }
+                            else v.Append(c);
+                        }
+                        // caso di acquisizione del parametro
+                        else if (c == '"') q = !q;
+                        else if (!q)
+                        {
+                            if (c == '=')
+                            {
+                                v.Clear();
+                                b = true;
+                                while ((++i < _ParameterStr.Length) && (_ParameterStr[i] == ' ')) ;
+                                i--;
+                            }
+                            else if (((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')) || ((c >= '0') && (c <= '9')) || (c == '-') || (c == '_'))
+                            {
+                                if ((c != '-') || (p.Length > 0)) p.Append(c);
+                            }
+                        }
+                        i++;
+                    }
+                    if (b && (p.Length > 0)) parametersDictionary.Add(new CXDictionaryItem(p.ToString(), v.ToString(), null));
+                }
+                parametersLast = _ParameterStr;
+            }
+            return parametersDictionary.Count;
+        }
+
+        /// <summary>Ritorna la stringa corrispondente all'ultimo dizionario di parametri caricato.</summary>
+        public static string ParametersDictionary()
+        {
+            int i;
+            StringBuilder r = new StringBuilder();
+            for (i = 0; i < parametersDictionary.Count; i++)
+            {
+                if (i > 0) r.Append(' ');
+                r.Append(parametersDictionary[i].Key);
+                r.Append('=');
+                r.Append(Quote2(parametersDictionary[i].Value,"\\\""));
+                r.Append(parametersSeparator);
+            }
+            parametersLast = r.ToString();
+            return parametersLast;
+        }
+
+
+        /// <summary>Ritorna il valore contenuto nei parametri e relativo al nome passato.</summary>
+        public static string Parameter(string _Parameters, string _ParameterName, string _Default = "")
+        {
+            int i;
+            if (ParametersDictionary(_Parameters) > 0)
+            {
+                i = parametersDictionary.Find(_ParameterName);
+                if (i > -1) return parametersDictionary[i].Value;
+                else return _Default;
+            }
+            else return _Default;
+        }
+
+        /// <summary>Ritorna il valore booleano contenuto nei parametri e relativo al nome passato.</summary>
+        public static bool ParameterBool(string _Parameters, string _ParameterName, bool _Default = false)
+        {
+            string p = Parameter(_Parameters, _ParameterName, "?");
+            if (p == "?") return _Default;
+            else return Bool(p);
+        }
+
+        /// <summary>Ritorna il valore intero contenuto nei parametri e relativo al nome passato.</summary>
+        public static int ParameterInt(string _Parameters, string _ParameterName, int _Default = 0)
+        {
+            string p = Parameter(_Parameters, _ParameterName, "?");
+            if (p == "?") return _Default;
+            else return ToInt(p);
+        }
+
+        /// <summary>Ritorna il valore contenuto nei parametri e relativo al nome passato.</summary>
+        public static string ParameterSet(string _Parameters, string _ParameterName, string _Value)
+        {
+            int i;
+            _ParameterName = _ParameterName.Trim();
+            if (_ParameterName.Length > 0)
+            {
+                i = parametersDictionary.Find(_ParameterName);
+                if (i > -1) parametersDictionary[i].Value = _Value;
+                else parametersDictionary.Add(new CXDictionaryItem(_ParameterName, _Value, null));
+                ParametersDictionary();
+            }
+            return parametersLast;
+        }
+
         /// <summary>Returns position of first char in to string seeking from left to right. 
         /// The function returns -1 if char is not found.</summary>
         static public int Pos(char _Char, string _String)
@@ -1208,9 +1340,10 @@ namespace codeXRAD
         }
 
         /// <summary>Returns string included by double quote "...".</summary>
-        static public string Quote2(string _String)
+        static public string Quote2(string _String, string _DoubleQuoteTrail = "")
         {
-            return @"""" + _String.Replace(@"""", @"""""") + @"""";
+            if (_DoubleQuoteTrail == "") return @"""" + _String.Replace(@"""", @"""""") + @"""";
+            else return @"""" + _String.Replace(@"""", _DoubleQuoteTrail) + @"""";
         }
 
         /// <summary>Returns string without specified character.</summary>
