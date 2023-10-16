@@ -32,7 +32,7 @@ namespace codeXRAD
         /// <summary>DBase IV.</summary>
         DBase4 = 3,
         /// <summary>PostgreSQL.</summary>
-        PostgreSQL = 4
+        PostgreSql = 4
     }
 
     /* */

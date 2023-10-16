@@ -2,7 +2,7 @@
  *  
  *  File:       CXDatabase.cs
  *  Version:    1.0.0
- *  Date:       September 2023
+ *  Date:       October 2023
  *  Author:     Stefano Mengarelli  
  *  E-mail:     info@stefanomengarelli.it
  *  
@@ -14,6 +14,7 @@
  */
 
 using MySql.Data.MySqlClient;
+using Npgsql;
 using System.ComponentModel;
 using System.Data;
 using System.Data.OleDb;
@@ -114,6 +115,11 @@ namespace codeXRAD
                     if (OleDB != null) return OleDB.State == ConnectionState.Open;
                     else return false;
                 }
+                else if (Type == CXDatabaseType.PostgreSql)
+                {
+                    if (OleDB != null) return PostgreSqlDB.State == ConnectionState.Open;
+                    else return false;
+                }
                 else return false;
             }
             set
@@ -159,6 +165,10 @@ namespace codeXRAD
         /// <summary>Indicated used connection form OleDB database type.</summary>
         [Browsable(false)]
         public OleDbConnection OleDB { get; set; }
+
+        /// <summary>Indicated used connection form PostgreSQL database type.</summary>
+        [Browsable(false)]
+        public NpgsqlConnection PostgreSqlDB { get; set; }
 
         /// <summary>Specifies database password.</summary>
         [Browsable(true)]
@@ -235,6 +245,12 @@ namespace codeXRAD
         /// <summary>Get or set MySQL database object suffix.</summary>
         public static char MySqlSuffix { get; set; } = '`';
 
+        /// <summary>Get or set PostgreSQL database object prefix.</summary>
+        public static char PostgreSqlPrefix { get; set; } = '"';
+
+        /// <summary>Get or set PostgreSQL database object suffix.</summary>
+        public static char PostgreSqlSuffix { get; set; } = '"';
+
         /// <summary>Get or set Microsoft SQL database object prefix.</summary>
         public static char SqlPrefix { get; set; } = '[';
 
@@ -265,6 +281,7 @@ namespace codeXRAD
             Host = "";
             MySqlDB = null;
             OleDB = null;
+            PostgreSqlDB = null;
             Password = "";
             Path = "";
             SqlDB = null;
@@ -325,6 +342,22 @@ namespace codeXRAD
                 CX.Error(ex);
             }
             //
+            // close postgresql connection
+            //
+            try
+            {
+                if (PostgreSqlDB != null)
+                {
+                    if (PostgreSqlDB.State != ConnectionState.Closed) PostgreSqlDB.Close();
+                    PostgreSqlDB.Dispose();
+                    PostgreSqlDB = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                CX.Error(ex);
+            }
+            //
             // check if closed
             //
             return !this.Active;
@@ -333,7 +366,7 @@ namespace codeXRAD
         /// <summary>Return connection string for current settings.</summary>
         public string ConnectionString()
         {
-            string r = "";
+            string r = "", p;
             if (Type == CXDatabaseType.Access)
             {
                 r = "Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + CX.Combine(Path, Database, "mdb") + ";";
@@ -352,6 +385,12 @@ namespace codeXRAD
             else if (Type == CXDatabaseType.DBase4)
             {
                 r = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + CX.Combine(Path, Database, "dbf") + ";Extended Properties=dBASE IV;User ID=Admin;Password=;";
+            }
+            else if (Type == CXDatabaseType.PostgreSql)
+            {
+                p = CX.After(Host, ":").Trim();
+                if (CX.Empty(p)) p = "5432";
+                r = "Server=" + CX.Before(Host + ':', ":") + ";Port=" + p + ";Database=" + Database + ";User Id=" + User + ";Password=" + Password + ";Timeout=" + ConnectionTimeout.ToString() + ";";
             }
             return r;
         }
@@ -427,6 +466,11 @@ namespace codeXRAD
                             {
                                 MySqlDB = new MySqlConnection(s);
                                 MySqlDB.Open();
+                            }
+                            else if (Type == CXDatabaseType.PostgreSql)
+                            {
+                                PostgreSqlDB = new NpgsqlConnection(s);
+                                PostgreSqlDB.Open();
                             }
                             else if (Type == CXDatabaseType.DBase4)
                             {
@@ -735,6 +779,7 @@ namespace codeXRAD
             else if ((_DatabaseType == "SQLSVR") || (_DatabaseType == "1")) return CXDatabaseType.Sql;
             else if ((_DatabaseType == "MYSQL") || (_DatabaseType == "3")) return CXDatabaseType.MySql;
             else if ((_DatabaseType == "DBASE4") || (_DatabaseType == "4")) return CXDatabaseType.DBase4;
+            else if ((_DatabaseType == "POSTGRESQL") || (_DatabaseType == "5")) return CXDatabaseType.PostgreSql;
             else return CXDatabaseType.None;
         }
 
@@ -745,6 +790,7 @@ namespace codeXRAD
             else if (_DatabaseType == CXDatabaseType.Sql) return "SQLSVR";
             else if (_DatabaseType == CXDatabaseType.MySql) return "MYSQL";
             else if (_DatabaseType == CXDatabaseType.DBase4) return "DBASE4";
+            else if (_DatabaseType == CXDatabaseType.PostgreSql) return "POSTGRESQL";
             else return "";
         }
 
