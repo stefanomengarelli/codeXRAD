@@ -588,8 +588,6 @@ namespace codeXRAD
             return Database;
         }
 
-        /* ********************** HERE ******************************** */
-
         /// <summary>Load the recordset. Return true if succeed.</summary>
         public bool Load()
         {
@@ -628,7 +626,7 @@ namespace codeXRAD
                         HasSysOSUser = Table.Columns.IndexOf("Sys_OSUser") > -1;
                         HasSysUser = Table.Columns.IndexOf("Sys_User") > -1;
                     }
-                    TableName = XSql.TableName(adaptedQuery);
+                    TableName = CX.SqlTableName(adaptedQuery);
                     if (!readOnly && HasUniqueId)
                     {
                         if (Database.Type == CXDatabaseType.Access)
@@ -646,7 +644,7 @@ namespace codeXRAD
                             if (Database.CommandTimeout > 0) oleAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                             ParametersByName(oleAdapter.DeleteCommand);
                         }
-                        else if (Database.Type == XDatabaseType.Sql)
+                        else if (Database.Type == CXDatabaseType.Sql)
                         {
                             // Insert command
                             sqlAdapter.InsertCommand.CommandText = InsertCommand(this);
@@ -661,7 +659,7 @@ namespace codeXRAD
                             if (Database.CommandTimeout > 0) sqlAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                             ParametersByName(sqlAdapter.DeleteCommand);
                         }
-                        else if (Database.Type == XDatabaseType.MySql)
+                        else if (Database.Type == CXDatabaseType.MySql)
                         {
                             // Insert command
                             mySqlAdapter.InsertCommand.CommandText = InsertCommand(this);
@@ -676,7 +674,22 @@ namespace codeXRAD
                             if (Database.CommandTimeout > 0) mySqlAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                             ParametersByName(mySqlAdapter.DeleteCommand);
                         }
-                        else if (Database.Type == XDatabaseType.DBase4)
+                        else if (Database.Type == CXDatabaseType.PostgreSql)
+                        {
+                            // Insert command
+                            pgSqlAdapter.InsertCommand.CommandText = InsertCommand(this);
+                            if (Database.CommandTimeout > 0) pgSqlAdapter.InsertCommand.CommandTimeout = Database.CommandTimeout;
+                            ParametersByName(pgSqlAdapter.InsertCommand);
+                            // Update command
+                            pgSqlAdapter.UpdateCommand.CommandText = UpdateCommand(this);
+                            if (Database.CommandTimeout > 0) pgSqlAdapter.UpdateCommand.CommandTimeout = Database.CommandTimeout;
+                            ParametersByName(pgSqlAdapter.UpdateCommand);
+                            // Delete command
+                            pgSqlAdapter.DeleteCommand.CommandText = DeleteCommand(this);
+                            if (Database.CommandTimeout > 0) pgSqlAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
+                            ParametersByName(pgSqlAdapter.DeleteCommand);
+                        }
+                        else if (Database.Type == CXDatabaseType.DBase4)
                         {
                             // Insert command
                             oleAdapter.InsertCommand.CommandText = InsertCommand(this);
@@ -692,11 +705,9 @@ namespace codeXRAD
                             ParametersByName(oleAdapter.DeleteCommand);
                         }
                     }
-                    BindingControls.Items.Clear();
                     if (Table != null)
                     {
                         ChangeState(CXDatasetState.Browse);
-                        BindingControls.Load();
                         First();
                     }
                     if (AfterOpen != null) AfterOpen(this);
@@ -949,6 +960,18 @@ namespace codeXRAD
             }
         }
 
+        /// <summary>Set PostgreSQL command names with char @ followed by field name wich related parameter (SourceColumn).</summary>
+        public static void ParametersByName(NpgsqlCommand _PgSqlCommand)
+        {
+            int i;
+            string s;
+            for (i = 0; i < _PgSqlCommand.Parameters.Count; i++)
+            {
+                s = "@" + _PgSqlCommand.Parameters[i].SourceColumn;
+                if (_PgSqlCommand.Parameters.IndexOf(s) < 0) _PgSqlCommand.Parameters[i].ParameterName = s;
+            }
+        }
+
         /// <summary>Return string containing SQL parameterized syntax for dataset update command.
         /// Require use of unique id field (ID).</summary>
         public static string UpdateCommand(CXDataset _Dataset)
@@ -956,21 +979,21 @@ namespace codeXRAD
             string q = "";
             StringBuilder r = new StringBuilder();
             r.Append("UPDATE ");
-            r.Append(XSql.QuoteIdentifier(_Dataset.TableName, _Dataset.Database.Type));
+            r.Append(CX.SqlQuoteId(_Dataset.TableName, _Dataset.Database.Type));
             r.Append(" SET ");
             for (int i = 0; i < _Dataset.Table.Columns.Count; i++)
             {
                 if (!_Dataset.Table.Columns[i].AutoIncrement)
                 {
                     r.Append(q);
-                    r.Append(XSql.QuoteIdentifier(_Dataset.Table.Columns[i].ColumnName, _Dataset.Database.Type));
+                    r.Append(CX.SqlQuoteId(_Dataset.Table.Columns[i].ColumnName, _Dataset.Database.Type));
                     r.Append(@"=@");
                     r.Append(_Dataset.Table.Columns[i].ColumnName);
                     q = ",";
                 }
             }
             r.Append(" WHERE ");
-            r.Append(XSql.QuoteIdentifier("ID", _Dataset.Database.Type));
+            r.Append(CX.SqlQuoteId("ID", _Dataset.Database.Type));
             r.Append(@"=@ID");
             return r.ToString();
         }
@@ -990,23 +1013,23 @@ namespace codeXRAD
         public static object Blank(DataColumn _DataColumn)
         {
             if (_DataColumn.AutoIncrement) return 0;
-            else if ((_DataColumn.ColumnName == "ID") && (_DataColumn.MaxLength == XUniqueId.Length)) return XUniqueId.New();
-            else if (_DataColumn.DataType == XDataType.Boolean) return false;
-            else if (_DataColumn.DataType == XDataType.Byte) return 0;
-            else if (_DataColumn.DataType == XDataType.Char) return ' ';
-            else if (_DataColumn.DataType == XDataType.DateTime) return DBNull.Value;
-            else if (_DataColumn.DataType == XDataType.Decimal) return 0.0d;
-            else if (_DataColumn.DataType == XDataType.Double) return 0.0d;
-            else if (_DataColumn.DataType == XDataType.Int16) return 0;
-            else if (_DataColumn.DataType == XDataType.Int32) return 0;
-            else if (_DataColumn.DataType == XDataType.Int64) return 0;
-            else if (_DataColumn.DataType == XDataType.SByte) return 0;
-            else if (_DataColumn.DataType == XDataType.Single) return 0.0f;
-            else if (_DataColumn.DataType == XDataType.String) return "";
-            else if (_DataColumn.DataType == XDataType.TimeSpan) return DBNull.Value;
-            else if (_DataColumn.DataType == XDataType.UInt16) return 0;
-            else if (_DataColumn.DataType == XDataType.UInt32) return 0;
-            else if (_DataColumn.DataType == XDataType.UInt64) return 0;
+            else if ((_DataColumn.ColumnName == "ID") && (_DataColumn.MaxLength == CX.UniqueIdLength)) return CX.UniqueId();
+            else if (_DataColumn.DataType == CXDataType.Boolean) return false;
+            else if (_DataColumn.DataType == CXDataType.Byte) return 0;
+            else if (_DataColumn.DataType == CXDataType.Char) return ' ';
+            else if (_DataColumn.DataType == CXDataType.DateTime) return DBNull.Value;
+            else if (_DataColumn.DataType == CXDataType.Decimal) return 0.0d;
+            else if (_DataColumn.DataType == CXDataType.Double) return 0.0d;
+            else if (_DataColumn.DataType == CXDataType.Int16) return 0;
+            else if (_DataColumn.DataType == CXDataType.Int32) return 0;
+            else if (_DataColumn.DataType == CXDataType.Int64) return 0;
+            else if (_DataColumn.DataType == CXDataType.SByte) return 0;
+            else if (_DataColumn.DataType == CXDataType.Single) return 0.0f;
+            else if (_DataColumn.DataType == CXDataType.String) return "";
+            else if (_DataColumn.DataType == CXDataType.TimeSpan) return DBNull.Value;
+            else if (_DataColumn.DataType == CXDataType.UInt16) return 0;
+            else if (_DataColumn.DataType == CXDataType.UInt32) return 0;
+            else if (_DataColumn.DataType == CXDataType.UInt64) return 0;
             else return DBNull.Value;
         }
 
@@ -1018,25 +1041,25 @@ namespace codeXRAD
             {
                 if (State == CXDatasetState.Read)
                 {
-                    if (Database.Type == XDatabaseType.Access)
+                    if (Database.Type == CXDatabaseType.Access)
                     {
                         i = oleReader.GetOrdinal(_FieldName);
                         if (i > -1) return oleReader[i];
                         else return null;
                     }
-                    else if (Database.Type == XDatabaseType.Sql)
+                    else if (Database.Type == CXDatabaseType.Sql)
                     {
                         i = sqlReader.GetOrdinal(_FieldName);
                         if (i > -1) return sqlReader[i];
                         else return null;
                     }
-                    else if (Database.Type == XDatabaseType.MySql)
+                    else if (Database.Type == CXDatabaseType.MySql)
                     {
                         i = mySqlReader.GetOrdinal(_FieldName);
                         if (i > -1) return mySqlReader[i];
                         else return null;
                     }
-                    else if (Database.Type == XDatabaseType.DBase4)
+                    else if (Database.Type == CXDatabaseType.DBase4)
                     {
                         i = oleReader.GetOrdinal(_FieldName);
                         if (i > -1) return oleReader[i];
