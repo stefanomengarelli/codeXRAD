@@ -384,14 +384,14 @@ namespace codeXRAD
         }
 
         /// <summary>Returns true if date is equal or greater than maximum value.</summary>
-        static public bool Max(DateTime _DateTime)
+        static public bool MaxDate(DateTime _DateTime)
         {
             if (_DateTime == null) return false;
             else return _DateTime >= DateTime.MaxValue;
         }
 
         /// <summary>Returns true if date is null or minimum value.</summary>
-        static public bool Min(DateTime _DateTime)
+        static public bool MinDate(DateTime _DateTime)
         {
             if (_DateTime == null) return true;
             else return _DateTime <= DateTime.MinValue;

@@ -155,7 +155,7 @@ namespace codeXRAD
         public event OnBeforePost BeforePost;
 
         /// <summary>Occurs when dataset record bindings read needed.</summary>
-        public delegate void OnBindingRead(object _Sender);
+        public delegate void OnBindingRead(object _Sender, string _ColumnName = null);
         /// <summary>Occurs when dataset record bindings read needed.</summary>
         public event OnBindingRead BindingRead;
 
@@ -803,6 +803,23 @@ namespace codeXRAD
                                     if (Database.CommandTimeout > 0) mySqlAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                                 }
                             }
+                            else if (Database.Type == CXDatabaseType.PostgreSql)
+                            {
+                                pgSqlAdapter = new NpgsqlDataAdapter(adaptedQuery, Database.PostgreSqlDB);
+                                pgSqlBuilder = new NpgsqlCommandBuilder(pgSqlAdapter);
+                                pgSqlBuilder.QuotePrefix = "" + CXDatabase.PostgreSqlPrefix;
+                                pgSqlBuilder.QuoteSuffix = "" + CXDatabase.PostgreSqlSuffix;
+                                pgSqlAdapter.FillSchema(InternalDataSet, SchemaType.Source);
+                                if (!readOnly)
+                                {
+                                    pgSqlAdapter.InsertCommand = pgSqlBuilder.GetInsertCommand();
+                                    if (Database.CommandTimeout > 0) pgSqlAdapter.InsertCommand.CommandTimeout = Database.CommandTimeout;
+                                    pgSqlAdapter.UpdateCommand = pgSqlBuilder.GetUpdateCommand();
+                                    if (Database.CommandTimeout > 0) pgSqlAdapter.UpdateCommand.CommandTimeout = Database.CommandTimeout;
+                                    pgSqlAdapter.DeleteCommand = pgSqlBuilder.GetDeleteCommand();
+                                    if (Database.CommandTimeout > 0) pgSqlAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
+                                }
+                            }
                             else
                             {
                                 sqlAdapter = new SqlDataAdapter(adaptedQuery, Database.SqlDB);
@@ -1057,6 +1074,12 @@ namespace codeXRAD
                         if (i > -1) return mySqlReader[i];
                         else return null;
                     }
+                    else if (Database.Type == CXDatabaseType.PostgreSql)
+                    {
+                        i = pgSqlReader.GetOrdinal(_FieldName);
+                        if (i > -1) return pgSqlReader[i];
+                        else return null;
+                    }
                     else if (Database.Type == CXDatabaseType.DBase4)
                     {
                         i = oleReader.GetOrdinal(_FieldName);
@@ -1283,25 +1306,6 @@ namespace codeXRAD
          *  --------------------------------------------------------------------
          */
 
-        /// <summary>Return true if clipboard contain data for table record.</summary>
-        public bool ClipboardHasRecord()
-        {
-            int i;
-            bool r = false;
-            string s = CX.Extract(Clipboard.GetText(), "xdataset", "\t");
-            if (s.Length > 0)
-            {
-                i = Table.Columns.Count;
-                while (!r && (i > 0))
-                {
-                    i--;
-                    if ((s.IndexOf('<' + Table.Columns[i].ColumnName) > -1)
-                        && (s.IndexOf(@"</" + Table.Columns[i].ColumnName) > -1)) r = true;
-                }
-            }
-            return r;
-        }
-
         /// <summary>Return true if current record is not deleted and not detached.</summary>
         public bool DataReady()
         {
@@ -1346,7 +1350,7 @@ namespace codeXRAD
         private void FetchTimerTick(object _Sender, ElapsedEventArgs _Args)
         {
             FetchTimer.Enabled = false;
-            if (BindingControls.AutoBind) BindingControls.Read();
+            if (BindingRead != null) BindingRead(this);
             if (AfterFetch != null) AfterFetch(this);
         }
 
@@ -1486,22 +1490,27 @@ namespace codeXRAD
                     {
                         if (Database.Type == CXDatabaseType.Access)
                         {
-                            oleCommand = new OleDbCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
+                            oleCommand = new OleDbCommand(CX.SqlDelimiters(CX.SqlMacros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
                             oleReader = oleCommand.ExecuteReader();
                         }
                         else if (Database.Type == CXDatabaseType.Sql)
                         {
-                            sqlCommand = new SqlCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.SqlDB);
+                            sqlCommand = new SqlCommand(CX.SqlDelimiters(CX.SqlMacros(_SqlQuery, Database.Type), Database.Type), Database.SqlDB);
                             sqlReader = sqlCommand.ExecuteReader();
                         }
                         else if (Database.Type == CXDatabaseType.MySql)
                         {
-                            mySqlCommand = new MySqlCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.MySqlDB);
+                            mySqlCommand = new MySqlCommand(CX.SqlDelimiters(CX.SqlMacros(_SqlQuery, Database.Type), Database.Type), Database.MySqlDB);
                             mySqlReader = mySqlCommand.ExecuteReader();
+                        }
+                        else if (Database.Type == CXDatabaseType.PostgreSql)
+                        {
+                            pgSqlCommand = new NpgsqlCommand(CX.SqlDelimiters(CX.SqlMacros(_SqlQuery, Database.Type), Database.Type), Database.PostgreSqlDB);
+                            pgSqlReader = pgSqlCommand.ExecuteReader();
                         }
                         else if (Database.Type == CXDatabaseType.DBase4)
                         {
-                            oleCommand = new OleDbCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
+                            oleCommand = new OleDbCommand(CX.SqlDelimiters(CX.SqlMacros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
                             oleReader = oleCommand.ExecuteReader();
                         }
                         retValue = Read();
@@ -1572,61 +1581,12 @@ namespace codeXRAD
             else return 0.0d;
         }
 
-        /// <summary>Copy string representing values of current record fields on clipboard. 
-        /// If blobs is true, blob fields will be stored in temporary directory and
-        /// its names will be included on strings.</summary>
-        public bool RecordToClipboard(bool _GetBlobs)
-        {
-            if (!Eof)
-            {
-                try
-                {
-                    Clipboard.SetText(RecordToString(_GetBlobs));
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    CX.Error(ex);
-                    return false;
-                }
-            }
-            else return false;
-        }
-
-        /// <summary>Returns a string representing values of current record fields. 
-        /// If blobs is true, blob fields will be stored in temporary directory and
-        /// its names will be included on strings.</summary>
-        public string RecordToString(bool _GetBlobs)
-        {
-            int i;
-            string c, r = "", t;
-            if (Row != null)
-            {
-                for (i=0;  i < Table.Columns.Count; i++)
-                {
-                    c = Table.Columns[i].ColumnName;
-                    if (Table.Columns[i].DataType == XDataType.BytesArray)
-                    {
-                        if (_GetBlobs)
-                        {
-                            t = XPath.TempFile("dat");
-                            if (FieldBlobSave(c, t) > 0) r = XTag.Set(r, c, t);
-                        }
-                    }
-                    else r = XTag.Set(r, c, FieldStr(c));
-                }
-                r = XTag.Embedd(r, "xdataset", "\t");
-            }
-            return r;
-        }
-
         /// <summary>Returns a string representing values of current record fields
-        /// specified in array. Blob fields will be stored in temporary directory and
-        /// its names will be included on strings.</summary>
-        public string RecordToString(string[] _FieldNamesList)
+        /// specified in array. Blob fields will be stored as base64.</summary>
+        public string RecordToString(string[] _FieldNamesList, bool _IncludeBlobs = true)
         {
             int i, j;
-            string c, r = "", t;
+            string c, r = "";
             if ((_FieldNamesList != null) && (Row != null))
             {
                 for (i = 0; i < _FieldNamesList.Length; i++)
@@ -1635,15 +1595,14 @@ namespace codeXRAD
                     if (j > -1)
                     {
                         c = Table.Columns[j].ColumnName;
-                        if (Table.Columns[j].DataType == System.Type.GetType("System.Byte[]"))
+                        if (Table.Columns[j].DataType == CXDataType.BytesArray)
                         {
-                            t = XPath.TempFile("dat");
-                            if (FieldBlobSave(c, t) > 0) r = XTag.Set(r, c, t);
+                            if (_IncludeBlobs) r = CX.TagSet(r, c, CX.Base64EncodeBytes((byte[])Field(c)), false);
                         }
-                        else r = XTag.Set(r, c, FieldStr(c));
+                        else r = CX.TagSet(r, c, FieldStr(c));
                     }
                 }
-                r = XTag.Embedd(r, "xdataset", "\t");
+                r = CX.TagSet(r, "codeXRAD:CXDataset", r, false);
             }
             return r;
         }
@@ -1710,9 +1669,9 @@ namespace codeXRAD
             bool r = false, cancel = false;
             DataRow row;
             if (BeforeInsert != null) BeforeInsert(this, ref cancel);
-            if (cancel) XError.Raise("Append operation cancelled.", false);
-            else if (readOnly) XError.Raise("Append cannot performed on readonly dataset.", false);
-            else if (State != CXDatasetState.Browse) XError.Raise("Append can performed only on browsing state dataset.", false);
+            if (cancel) CX.Raise("Append operation cancelled.", false);
+            else if (readOnly) CX.Raise("Append cannot performed on readonly dataset.", false);
+            else if (State != CXDatasetState.Browse) CX.Raise("Append can performed only on browsing state dataset.", false);
             else
             {
                 try
@@ -1728,9 +1687,6 @@ namespace codeXRAD
                     Bof = false;
                     Eof = false;
                     ChangeState(CXDatasetState.Insert);
-                    //
-                    if (DataSetAlign!=null) DataSetAlign.Append();
-                    //
                     if (AfterInsert != null) AfterInsert(this);
                     r = true;
                 }
@@ -1773,8 +1729,8 @@ namespace codeXRAD
         public bool Append(CXDataset _DataSet, bool _IgnoreErrors)
         {
             bool r = false;
-            if (readOnly) XError.Raise("Append cannot performed on readonly dataset.", false);
-            else if (State != CXDatasetState.Browse) XError.Raise("Append can performed only on browsing state dataset.", false);
+            if (readOnly) CX.Raise("Append cannot performed on readonly dataset.", false);
+            else if (State != CXDatasetState.Browse) CX.Raise("Append can performed only on browsing state dataset.", false);
             else if (_DataSet != null)
             {
                 _DataSet.First();
@@ -1806,12 +1762,12 @@ namespace codeXRAD
 
         /// <summary>Append to dataset all record of ds from current active. During operation
         /// gauge progress bar will be updated from-to values. Return true if succeed.</summary>
-        public bool Append(CXDataset _DataSet, bool _IgnoreErrors, CXProgressEvent _ProgressEvent)
+        public bool Append(CXDataset _DataSet, bool _IgnoreErrors, CXOnProgress _ProgressEvent)
         {
             bool r = false, stop = false;
             int i, max;
-            if (readOnly) XError.Raise("Append cannot performed on readonly dataset.", false);
-            else if (State != CXDatasetState.Browse) XError.Raise("Append can performed only on browsing state dataset.", false);
+            if (readOnly) CX.Raise("Append cannot performed on readonly dataset.", false);
+            else if (State != CXDatasetState.Browse) CX.Raise("Append can performed only on browsing state dataset.", false);
             else
             {
                 i = 0;
@@ -1838,7 +1794,7 @@ namespace codeXRAD
                     }
                     else r = false;
                     i++;
-                    if (_ProgressEvent != null) _ProgressEvent(XMath.Percent(i, max), ref stop);
+                    if (_ProgressEvent != null) _ProgressEvent(Convert.ToDouble(CX.Percent(i, max)), ref stop);
                     _DataSet.Next();
                 }
                 if (stop) r = false;
@@ -1879,63 +1835,63 @@ namespace codeXRAD
                 {
                     co = Table.Columns[_ColumnIndex];
                     if (co.AutoIncrement) Row[_ColumnIndex] = 0;
-                    else if (co.DataType == XDataType.Boolean)
+                    else if (co.DataType == CXDataType.Boolean)
                     {
                         if (_Value == null) Row[_ColumnIndex] = false;
                         else Row[_ColumnIndex] = "1TVStvs".IndexOf((_Value.ToString().Trim() + " ")[0]) > -1;
                     }
-                    else if ((co.DataType == XDataType.Byte) || (co.DataType == XDataType.SByte))
+                    else if ((co.DataType == CXDataType.Byte) || (co.DataType == CXDataType.SByte))
                     {
                         if (_Value == null) Row[_ColumnIndex] = 0;
-                        else Row[_ColumnIndex] = Convert.ToByte(XStr.ToInt(_Value.ToString()) % 256);
+                        else Row[_ColumnIndex] = Convert.ToByte(CX.ToInt(_Value.ToString()) % 256);
                     }
-                    else if (co.DataType == XDataType.Char)
+                    else if (co.DataType == CXDataType.Char)
                     {
                         if (_Value == null) Row[_ColumnIndex] = '\0';
                         else Row[_ColumnIndex] = (_Value.ToString() + " ")[0];
                     }
-                    else if (co.DataType == XDataType.DateTime)
+                    else if (co.DataType == CXDataType.DateTime)
                     {
                         if (_Value == null) Row[_ColumnIndex] = DBNull.Value;
                         else if (_Value is DateTime)
                         {
-                            if (XDate.Min((DateTime)_Value)) Row[_ColumnIndex] = DBNull.Value;
+                            if (CX.MinDate((DateTime)_Value)) Row[_ColumnIndex] = DBNull.Value;
                             else Row[_ColumnIndex] = (DateTime)_Value;
                         }
-                        else if (_Value.ToString().Trim().Length > 0) Row[_ColumnIndex] = XDate.Date(_Value.ToString(), XDate.DateFormat, true);
+                        else if (_Value.ToString().Trim().Length > 0) Row[_ColumnIndex] = CX.Date(_Value.ToString(), CX.DateFormat, true);
                         else Row[_ColumnIndex] = DBNull.Value;
                     }
-                    else if ((co.DataType == XDataType.Decimal) || (co.DataType == XDataType.Double) || (co.DataType == XDataType.Single))
+                    else if ((co.DataType == CXDataType.Decimal) || (co.DataType == CXDataType.Double) || (co.DataType == CXDataType.Single))
                     {
                         if (_Value == null) Row[_ColumnIndex] = 0.0;
-                        else Row[_ColumnIndex] = XStr.Val(_Value.ToString());
+                        else Row[_ColumnIndex] = CX.Val(_Value.ToString());
                     }
-                    else if ((co.DataType == XDataType.Int32) || (co.DataType == XDataType.Int16)
-                        || (co.DataType == XDataType.UInt32) || (co.DataType == XDataType.UInt16))
+                    else if ((co.DataType == CXDataType.Int32) || (co.DataType == CXDataType.Int16)
+                        || (co.DataType == CXDataType.UInt32) || (co.DataType == CXDataType.UInt16))
                     {
                         if (_Value == null) Row[_ColumnIndex] = 0;
-                        else Row[_ColumnIndex] = XStr.ToInt(_Value.ToString());
+                        else Row[_ColumnIndex] = CX.ToInt(_Value.ToString());
                     }
-                    else if ((co.DataType == XDataType.Int64) || (co.DataType == XDataType.UInt64))
+                    else if ((co.DataType == CXDataType.Int64) || (co.DataType == CXDataType.UInt64))
                     {
                         if (_Value == null) Row[_ColumnIndex] = 0;
-                        else Row[_ColumnIndex] = XStr.ToLong(_Value.ToString());
+                        else Row[_ColumnIndex] = CX.ToLong(_Value.ToString());
                     }
-                    else if (co.DataType == XDataType.TimeSpan)
+                    else if (co.DataType == CXDataType.TimeSpan)
                     {
                         if (_Value == null) Row[_ColumnIndex] = DBNull.Value;
-                        else if (_Value.ToString().Trim().Length > 0) Row[_ColumnIndex] = new TimeSpan(XDate.Date(_Value.ToString(), XDate.DateFormat, true).Ticks);
+                        else if (_Value.ToString().Trim().Length > 0) Row[_ColumnIndex] = new TimeSpan(CX.Date(_Value.ToString(), CX.DateFormat, true).Ticks);
                         else Row[_ColumnIndex] = DBNull.Value;
                     }
-                    else if (co.DataType == XDataType.BytesArray)
+                    else if (co.DataType == CXDataType.BytesArray)
                     {
                         if (_Value == null) Row[_ColumnIndex] = DBNull.Value;
                         else Row[_ColumnIndex] = _Value;
                     }
                     else if (_Value == null) Row[_ColumnIndex] = "";
-                    else if (co.MaxLength > 0) Row[_ColumnIndex] = XStr.Mid(_Value.ToString(), 0, co.MaxLength);
+                    else if (co.MaxLength > 0) Row[_ColumnIndex] = CX.Mid(_Value.ToString(), 0, co.MaxLength);
                     else Row[_ColumnIndex] = _Value;
-                    if (BindingControls.AutoBind) BindingControls.Read(co.ColumnName);
+                    if (BindingRead != null) BindingRead(this, co.ColumnName);
                     return true;
                 }
                 catch (Exception ex)
@@ -1946,7 +1902,7 @@ namespace codeXRAD
             }
             else
             {
-                XError.Raise("Unknown field or invalid field index.", true);
+                CX.Raise("Unknown field or invalid field index.", true);
                 return false;
             }
         }
@@ -2012,7 +1968,7 @@ namespace codeXRAD
         /// <summary>Assign new unique ID to record, matching type.</summary>
         public bool AssignNewID()
         {
-            if (HasUniqueId) return Assign("ID", XUniqueId.New());
+            if (HasUniqueId) return Assign("ID", CX.UniqueId());
             else return false;
         }
 
@@ -2095,7 +2051,7 @@ namespace codeXRAD
             {
                 r = String.Compare(
                     _FieldSortFormattedValues[i],
-                    XSql.SortableValue(Table.Columns[_KeyFieldsIndexes[i]], Table.Rows[_RowIndex][_KeyFieldsIndexes[i]]),
+                    CX.SqlSortable(Table.Columns[_KeyFieldsIndexes[i]], Table.Rows[_RowIndex][_KeyFieldsIndexes[i]]),
                     !Table.CaseSensitive);
                 i++;
             }
@@ -2118,13 +2074,13 @@ namespace codeXRAD
                         i = this.Table.Columns.IndexOf(_UniqueFieldName);
                         if (i > -1)
                         {
-                            if (XDataType.IsDate(this.Table.Columns[i].DataType)) value = XSql.QuoteDateTime(this.FieldDateTime(_UniqueFieldName), this.Database.Type);
-                            else if (XDataType.IsNumeric(this.Table.Columns[i].DataType)) value = this.FieldStr(_UniqueFieldName);
-                            else if (XDataType.IsBoolean(this.Table.Columns[i].DataType)) value = XStr.Iif(this.FieldBool(_UniqueFieldName), "TRUE", "FALSE");
-                            else value = XStr.Quote(this.FieldStr(_UniqueFieldName));
+                            if (CXDataType.IsDate(this.Table.Columns[i].DataType)) value = CX.SqlQuote(this.FieldDateTime(_UniqueFieldName), this.Database.Type);
+                            else if (CXDataType.IsNumeric(this.Table.Columns[i].DataType)) value = this.FieldStr(_UniqueFieldName);
+                            else if (CXDataType.IsBoolean(this.Table.Columns[i].DataType)) value = CX.Iif(this.FieldBool(_UniqueFieldName), "TRUE", "FALSE");
+                            else value = CX.Quote(this.FieldStr(_UniqueFieldName));
                             ds = new CXDataset(this.Database);
                             if (ds.OpenAtLeast("SELECT [ID],[" + _UniqueFieldName + "] FROM [" + this.TableName
-                                + "] WHERE ([" + _UniqueFieldName + "]=" + value + ")AND([ID]<>" + XStr.Quote(this.FieldStr("ID")) + ")"))
+                                + "] WHERE ([" + _UniqueFieldName + "]=" + value + ")AND([ID]<>" + CX.Quote(this.FieldStr("ID")) + ")"))
                             {
                                 r = ds.RecordCount();
                                 ds.Close();
@@ -2192,9 +2148,9 @@ namespace codeXRAD
         {
             bool r = false, abort = false;
             if (BeforeCancel != null) BeforeCancel(this, ref abort);
-            if (abort) XError.Raise("Cancel operation aborted.", false);
-            else if (readOnly) XError.Raise("Cancel cannot performed on readonly dataset.", false);
-            else if (!Modifying(false)) XError.Raise("Cancel operation can performed only on editing or appending state dataset.", false);
+            if (abort) CX.Raise("Cancel operation aborted.", false);
+            else if (readOnly) CX.Raise("Cancel cannot performed on readonly dataset.", false);
+            else if (!Modifying(false)) CX.Raise("Cancel operation can performed only on editing or appending state dataset.", false);
             else
             {
                 try
@@ -2211,8 +2167,6 @@ namespace codeXRAD
                     ChangeState(CXDatasetState.Browse);
                     Goto(RecordIndex);
                     //
-                    if (DataSetAlign!=null) DataSetAlign.Cancel();
-                    //
                     if (AfterCancel != null) AfterCancel(this);
                 }
             }
@@ -2228,28 +2182,35 @@ namespace codeXRAD
                 {
                     if (InternalDataSet.HasChanges())
                     {
-                        if (Database.Type == XDatabaseType.Access)
+                        if (Database.Type == CXDatabaseType.Access)
                         {
                             oleAdapter.InsertCommand.Connection = Database.OleDB;
                             oleAdapter.UpdateCommand.Connection = Database.OleDB;
                             oleAdapter.DeleteCommand.Connection = Database.OleDB;
                             oleAdapter.Update(InternalDataSet);
                         }
-                        else if (Database.Type == XDatabaseType.Sql)
+                        else if (Database.Type == CXDatabaseType.Sql)
                         {
                             sqlAdapter.InsertCommand.Connection = Database.SqlDB;
                             sqlAdapter.UpdateCommand.Connection = Database.SqlDB;
                             sqlAdapter.DeleteCommand.Connection = Database.SqlDB;
                             sqlAdapter.Update(InternalDataSet);
                         }
-                        else if (Database.Type == XDatabaseType.MySql)
+                        else if (Database.Type == CXDatabaseType.MySql)
                         {
                             mySqlAdapter.InsertCommand.Connection = Database.MySqlDB;
                             mySqlAdapter.UpdateCommand.Connection = Database.MySqlDB;
                             mySqlAdapter.DeleteCommand.Connection = Database.MySqlDB;
                             mySqlAdapter.Update(InternalDataSet);
                         }
-                        else if (Database.Type == XDatabaseType.DBase4)
+                        else if (Database.Type == CXDatabaseType.PostgreSql)
+                        {
+                            pgSqlAdapter.InsertCommand.Connection = Database.PostgreSqlDB;
+                            pgSqlAdapter.UpdateCommand.Connection = Database.PostgreSqlDB;
+                            pgSqlAdapter.DeleteCommand.Connection = Database.PostgreSqlDB;
+                            pgSqlAdapter.Update(InternalDataSet);
+                        }
+                        else if (Database.Type == CXDatabaseType.DBase4)
                         {
                             oleAdapter.InsertCommand.Connection = Database.OleDB;
                             oleAdapter.UpdateCommand.Connection = Database.OleDB;
@@ -2261,10 +2222,11 @@ namespace codeXRAD
                     changesBufferCount = 0;
                     if (this.HasUniqueId)
                     {
-                        if (Database.Type == XDatabaseType.Access) oleAdapter.Fill(InternalDataSet);
-                        else if (Database.Type == XDatabaseType.Sql) sqlAdapter.Fill(InternalDataSet);
-                        else if (Database.Type == XDatabaseType.MySql) mySqlAdapter.Fill(InternalDataSet);
-                        else if (Database.Type == XDatabaseType.DBase4) oleAdapter.Fill(InternalDataSet);
+                        if (Database.Type == CXDatabaseType.Access) oleAdapter.Fill(InternalDataSet);
+                        else if (Database.Type == CXDatabaseType.Sql) sqlAdapter.Fill(InternalDataSet);
+                        else if (Database.Type == CXDatabaseType.MySql) mySqlAdapter.Fill(InternalDataSet);
+                        else if (Database.Type == CXDatabaseType.PostgreSql) pgSqlAdapter.Fill(InternalDataSet);
+                        else if (Database.Type == CXDatabaseType.DBase4) oleAdapter.Fill(InternalDataSet);
                         else InternalDataSet.Clear();
                         if (InternalDataSet.Tables.Count > 0) Table = InternalDataSet.Tables[0];
                         else Table = null;
@@ -2313,9 +2275,9 @@ namespace codeXRAD
         {
             bool r = false, abort = false;
             if (BeforeDelete != null) BeforeDelete(this, ref abort);
-            if (abort) XError.Raise("Delete operation aborted.", false);
-            else if (readOnly) XError.Raise("Delete cannot performed on readonly dataset.", false);
-            else if (State != CXDatasetState.Browse) XError.Raise("Delete can performed only on browsing state dataset.", false);
+            if (abort) CX.Raise("Delete operation aborted.", false);
+            else if (readOnly) CX.Raise("Delete cannot performed on readonly dataset.", false);
+            else if (State != CXDatasetState.Browse) CX.Raise("Delete can performed only on browsing state dataset.", false);
             else
             {
                 if (Row != null)
@@ -2340,8 +2302,6 @@ namespace codeXRAD
                     ChangeState(CXDatasetState.Browse);
                     if (r)
                     {
-                        if (DataSetAlign != null) DataSetAlign.Delete();
-                        //
                         if (ChangesNotify) Changes();
                         //
                         if (AfterDelete != null) AfterDelete(this);
@@ -2356,14 +2316,12 @@ namespace codeXRAD
         {
             bool r = false, abort = false;
             if (BeforeEdit != null) BeforeEdit(this, ref abort);
-            if (abort) XError.Raise("Edit operation aborted.", false);
-            else if (readOnly) XError.Raise("Edit cannot performed on readonly dataset.", false);
-            else if (State != CXDatasetState.Browse) XError.Raise("Edit can performed only on browsing state dataset.", false);
+            if (abort) CX.Raise("Edit operation aborted.", false);
+            else if (readOnly) CX.Raise("Edit cannot performed on readonly dataset.", false);
+            else if (State != CXDatasetState.Browse) CX.Raise("Edit can performed only on browsing state dataset.", false);
             else
             {
                 ChangeState(CXDatasetState.Edit);
-                //
-                if (DataSetAlign != null) DataSetAlign.Edit();
                 //
                 if (AfterEdit != null) AfterEdit(this);
                 r = true;
@@ -2379,25 +2337,30 @@ namespace codeXRAD
             Close();
             if (OpenDatabase())
             {
-                _SqlStatement = XSql.Delimiters(XSql.Macros(_SqlStatement, Database.Type), Database.Type);
+                _SqlStatement = CX.SqlDelimiters(CX.SqlMacros(_SqlStatement, Database.Type), Database.Type);
                 try
                 {
-                    if (Database.Type == XDatabaseType.Access)
+                    if (Database.Type == CXDatabaseType.Access)
                     {
                         OleDbCommand cmd = new OleDbCommand(_SqlStatement, Database.OleDB);
                         r = cmd.ExecuteNonQuery();
                     }
-                    else if (Database.Type == XDatabaseType.Sql)
+                    else if (Database.Type == CXDatabaseType.Sql)
                     {
                         SqlCommand cmd = new SqlCommand(_SqlStatement, Database.SqlDB);
                         r = cmd.ExecuteNonQuery();
                     }
-                    else if (Database.Type == XDatabaseType.MySql)
+                    else if (Database.Type == CXDatabaseType.MySql)
                     {
                         MySqlCommand cmd = new MySqlCommand(_SqlStatement, Database.MySqlDB);
                         r = cmd.ExecuteNonQuery();
                     }
-                    else if (Database.Type == XDatabaseType.DBase4)
+                    else if (Database.Type == CXDatabaseType.PostgreSql)
+                    {
+                        NpgsqlCommand cmd = new NpgsqlCommand(_SqlStatement, Database.PostgreSqlDB);
+                        r = cmd.ExecuteNonQuery();
+                    }
+                    else if (Database.Type == CXDatabaseType.DBase4)
                     {
                         OleDbCommand cmd = new OleDbCommand(_SqlStatement, Database.OleDB);
                         r = cmd.ExecuteNonQuery();
@@ -2406,8 +2369,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    CX.Error(ex);
-                    XError.Error += "\r\n*** SQL STATEMENT ***\r\n" + _SqlStatement;
+                    CX.Error(ex.Message + "\r\n*** SQL STATEMENT ***\r\n" + _SqlStatement, ex);
                     r = -1;
                 }
             }
@@ -2438,41 +2400,36 @@ namespace codeXRAD
             bool r = false, abort = false;
             if (BeforePost != null) BeforePost(this, ref abort);
             //
-            if (abort) XError.Raise("Post operation aborted.", false);
-            else if (readOnly) XError.Raise("Post cannot performed on readonly dataset.", false);
-            else if (!Modifying(false)) XError.Raise("Post can performed only on editing or appending state dataset.", false);
+            if (abort) CX.Raise("Post operation aborted.", false);
+            else if (readOnly) CX.Raise("Post cannot performed on readonly dataset.", false);
+            else if (!Modifying(false)) CX.Raise("Post can performed only on editing or appending state dataset.", false);
             else
             {
-                if (DataSetAlign != null) r = DataSetAlign.Post();
-                else r = true;
-                if (r)
+                if (BindingWrite != null) BindingWrite(this);
+                try
                 {
-                    if (BindingControls.AutoBind) BindingControls.Write();
-                    try
+                    if (UpdateRecordSysInformation)
                     {
-                        if (UpdateRecordSysInformation)
+                        if (Row.RowState == DataRowState.Added)
                         {
-                            if (Row.RowState == DataRowState.Added)
-                            {
-                                if (HasSysInsert) Row["Sys_Insert"] = DateTime.Now;
-                                if (HasSysDate) Row["Sys_Date"] = DateTime.Now;
-                                if (HasSysOSUser) Row["Sys_OSUser"] = XSystem.User();
-                                if (HasSysUser) Row["Sys_User"] = XUser.Current.Id;
-                            }
-                            else if (Row.RowState == DataRowState.Modified)
-                            {
-                                if (HasSysDate) Row["Sys_Date"] = DateTime.Now;
-                                if (HasSysOSUser) Row["Sys_OSUser"] = XSystem.User();
-                                if (HasSysUser) Row["Sys_User"] = XUser.Current.Id;
-                            }
+                            if (HasSysInsert) Row["Sys_Insert"] = DateTime.Now;
+                            if (HasSysDate) Row["Sys_Date"] = DateTime.Now;
+                            if (HasSysOSUser) Row["Sys_OSUser"] = CX.User();
+                            // if (HasSysUser) Row["Sys_User"] = CXUser.Current.Id;
                         }
-                        r = Buffer();
+                        else if (Row.RowState == DataRowState.Modified)
+                        {
+                            if (HasSysDate) Row["Sys_Date"] = DateTime.Now;
+                            if (HasSysOSUser) Row["Sys_OSUser"] = CX.User();
+                            // if (HasSysUser) Row["Sys_User"] = XUser.Current.Id;
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        CX.Error(ex);
-                        r = false;
-                    }
+                    r = Buffer();
+                }
+                catch (Exception ex)
+                {
+                    CX.Error(ex);
+                    r = false;
                 }
             }
             if (r)
@@ -2500,14 +2457,6 @@ namespace codeXRAD
             return r;
         }
 
-        /// <summary>Store in the current record fields values contained on clipboard. 
-        /// If blobs is true, blob fields will be stored in temporary directory and
-        /// its names will be included on strings.</summary>
-        public bool RecordFromClipboard(bool _IncludeBlobs)
-        {
-            return RecordFromString(Clipboard.GetText(), _IncludeBlobs, null);
-        }
-
         /// <summary>Store in the current record fields values contained on s. 
         /// If blobs is true, blob fields will be stored in temporary directory and
         /// its names will be included on strings. It's possible exclude a list of fields by name.</summary>
@@ -2518,7 +2467,7 @@ namespace codeXRAD
             string c, t;
             if (Row != null)
             {
-                _TaggedString = XTag.Extract(_TaggedString, "xdataset", "\t").Trim();
+                _TaggedString = CX.TagGet(_TaggedString, "codeXRAD:CXDataset", "", false).Trim();
                 if (Modifying(false) && (_TaggedString.Length>0))
                 {
                     i = 0;
@@ -2527,20 +2476,20 @@ namespace codeXRAD
                         if (!Table.Columns[i].AutoIncrement)
                         {
                             c = Table.Columns[i].ColumnName;
-                            if (_ExcludeFields != null) b = XStr.Find(c, _ExcludeFields, true) < 0;
+                            if (_ExcludeFields != null) b = CX.Find(c, _ExcludeFields, true) < 0;
                             else b = true;
                             if (b)
                             {
-                                b = Table.Columns[i].DataType == XDataType.BytesArray;
+                                b = Table.Columns[i].DataType == CXDataType.BytesArray;
                                 if (b)
                                 {
                                     if (_IncludeBlobs)
                                     {
-                                        t = XTag.Get(_TaggedString, c, "");
-                                        if (XIO.FileExists(t)) Assign(c, XIO.FileLoad(t));
+                                        t = CX.TagGet(_TaggedString, c, "");
+                                        Assign(c, CX.Base64DecodeBytes(t));
                                     }
                                 }
-                                else Assign(c, XTag.Get(_TaggedString, c, ""));
+                                else Assign(c, CX.TagGet(_TaggedString, c, ""));
                             }
                         }
                         i++;
