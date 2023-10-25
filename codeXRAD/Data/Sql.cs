@@ -366,7 +366,7 @@ namespace codeXRAD
             while (_String.IndexOf(_MacroToReplace+'(')>-1)
             {
                 a = CX.Btw(_String, _MacroToReplace + '(', ")");
-                if (_ReplaceExpression == "%DATETIME%") b = SqlQuoteDate(CX.Date(a, CXDateFormat.yyyymmdd, true), _Type);
+                if (_ReplaceExpression == "%DATETIME%") b = SqlQuote(CX.Date(a, CXDateFormat.yyyymmdd, true), _Type);
                 else b = _ReplaceExpression.Replace("%0%", a);
                 _String = _String.Replace(_MacroToReplace + '(' + a + ')', b);
             }

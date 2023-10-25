@@ -15,13 +15,11 @@
 
 using MySql.Data.MySqlClient;
 using Npgsql;
-using System;
 using System.ComponentModel;
 using System.Data;
 using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Drawing;
-using System.IO;
 using System.Text;
 using System.Timers;
 
@@ -407,7 +405,7 @@ namespace codeXRAD
             const char sep = ';';
             string f = ChangesFilePath(_TableName);
             CX.FileDelete(f);
-            return CX.SaveString(f, _TableName + sep + CX.Str(DateTime.Now, CXDateFormat.iso8601, true) + sep + CX.User());
+            return CX.SaveString(f, _TableName + sep + CX.Str(DateTime.Now, CXDateFormat.iso8601, true) + sep + CX.Machine() + sep + CX.User());
         }
 
         /// <summary>Return changes notify file path.</summary>
@@ -716,7 +714,7 @@ namespace codeXRAD
             catch (Exception ex)
             {
                 Close();
-                XError.Internal(ex);
+                CX.Error(ex);
             }
             return State == CXDatasetState.Browse;
         }
@@ -746,20 +744,20 @@ namespace codeXRAD
                 if (BeforeOpen != null) BeforeOpen(this, ref cancel);
                 if (!cancel)
                 {
-                    adaptedQuery = XSql.Delimiters(XSql.Macros(_SqlSelectQuery, Database.Type), Database.Type);
+                    adaptedQuery = CX.SqlDelimiters(CX.SqlMacros(_SqlSelectQuery, Database.Type), Database.Type);
                     if (_ReadOnly) readOnly = true;
-                    else readOnly = XStr.Btw(adaptedQuery.ToLower(), " from ", " on ").IndexOf("join") > -1;
+                    else readOnly = CX.Btw(adaptedQuery.ToLower(), " from ", " on ").IndexOf("join") > -1;
                     try
                     {
                         InternalDataSet = new DataSet();
                         try
                         {
-                            if (Database.Type == XDatabaseType.Access)
+                            if (Database.Type == CXDatabaseType.Access)
                             {
                                 oleAdapter = new OleDbDataAdapter(adaptedQuery, Database.OleDB);
                                 oleBuilder = new OleDbCommandBuilder(oleAdapter);
-                                oleBuilder.QuotePrefix = "" + XDatabase.SqlPrefix;
-                                oleBuilder.QuoteSuffix = "" + XDatabase.SqlSuffix;
+                                oleBuilder.QuotePrefix = "" + CXDatabase.SqlPrefix;
+                                oleBuilder.QuoteSuffix = "" + CXDatabase.SqlSuffix;
                                 oleAdapter.FillSchema(InternalDataSet, SchemaType.Source);
                                 if (!readOnly)
                                 {
@@ -771,12 +769,12 @@ namespace codeXRAD
                                     if (Database.CommandTimeout > 0) oleAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                                 }
                             }
-                            else if (Database.Type == XDatabaseType.DBase4)
+                            else if (Database.Type == CXDatabaseType.DBase4)
                             {
                                 oleAdapter = new OleDbDataAdapter(adaptedQuery, Database.OleDB);
                                 oleBuilder = new OleDbCommandBuilder(oleAdapter);
-                                oleBuilder.QuotePrefix = "" + XDatabase.SqlPrefix;
-                                oleBuilder.QuoteSuffix = "" + XDatabase.SqlSuffix;
+                                oleBuilder.QuotePrefix = "" + CXDatabase.SqlPrefix;
+                                oleBuilder.QuoteSuffix = "" + CXDatabase.SqlSuffix;
                                 oleAdapter.FillSchema(InternalDataSet, SchemaType.Source);
                                 if (!readOnly)
                                 {
@@ -788,12 +786,12 @@ namespace codeXRAD
                                     if (Database.CommandTimeout > 0) oleAdapter.DeleteCommand.CommandTimeout = Database.CommandTimeout;
                                 }
                             }
-                            else if (Database.Type == XDatabaseType.MySql)
+                            else if (Database.Type == CXDatabaseType.MySql)
                             {
                                 mySqlAdapter = new MySqlDataAdapter(adaptedQuery, Database.MySqlDB);
                                 mySqlBuilder = new MySqlCommandBuilder(mySqlAdapter);
-                                mySqlBuilder.QuotePrefix = "" + XDatabase.MySqlPrefix;
-                                mySqlBuilder.QuoteSuffix = "" + XDatabase.MySqlSuffix;
+                                mySqlBuilder.QuotePrefix = "" + CXDatabase.MySqlPrefix;
+                                mySqlBuilder.QuoteSuffix = "" + CXDatabase.MySqlSuffix;
                                 mySqlAdapter.FillSchema(InternalDataSet, SchemaType.Source);
                                 if (!readOnly)
                                 {
@@ -809,8 +807,8 @@ namespace codeXRAD
                             {
                                 sqlAdapter = new SqlDataAdapter(adaptedQuery, Database.SqlDB);
                                 sqlBuilder = new SqlCommandBuilder(sqlAdapter);
-                                sqlBuilder.QuotePrefix = "" + XDatabase.SqlPrefix;
-                                sqlBuilder.QuoteSuffix = "" + XDatabase.SqlSuffix;
+                                sqlBuilder.QuotePrefix = "" + CXDatabase.SqlPrefix;
+                                sqlBuilder.QuoteSuffix = "" + CXDatabase.SqlSuffix;
                                 sqlAdapter.FillSchema(InternalDataSet, SchemaType.Source);
                                 if (!readOnly)
                                 {
@@ -825,19 +823,19 @@ namespace codeXRAD
                         }
                         catch (Exception ex)
                         {
-                            XError.Set(ex.Message + " on query: " + adaptedQuery, ex);
+                            CX.Error(ex.Message + " on query: " + adaptedQuery, ex);
                         }
                         Load();
                     }
                     catch (Exception ex)
                     {
-                        XError.Set(ex.Message + " on query: " + adaptedQuery, ex);
+                        CX.Error(ex.Message + " on query: " + adaptedQuery, ex);
                     }
                     r = State != CXDatasetState.Closed;
                 }
                 else
                 {
-                    XError.Raise("Dataset open cancelled.", false);
+                    CX.Raise("Dataset open cancelled.", false);
                     r = false;
                 }
             }
@@ -862,18 +860,18 @@ namespace codeXRAD
         public bool OpenDatabase()
         {
             bool r = false;
-            if (alias.Trim().Length > 0) Database = XDatabase.Keep(alias);
+            if (alias.Trim().Length > 0) Database = CXDatabase.Keep(alias);
             else if (Database != null) Database.Keep();
-            if (Database == null) XError.Raise("Null database error.", false);
+            if (Database == null) CX.Raise("Null database error.", false);
             else
             {
                 r = Database.Active;
                 if (!r)
                 {
-                    Application.DoEvents();
+                    CX.DoEvents();
                     r = Database.Open();
                 }
-                if (!r) XError.Raise("Error opening database.", false);
+                if (!r) CX.Raise("Error opening database.", false);
             }
             return r;
         }
@@ -893,29 +891,29 @@ namespace codeXRAD
         /// Require use of unique id field (ID).</summary>
         public static string DeleteCommand(CXDataset _Dataset)
         {
-            return "DELETE FROM " + XSql.QuoteIdentifier(_Dataset.TableName, _Dataset.Database.Type)
-                + " WHERE " + XSql.QuoteIdentifier("ID", _Dataset.Database.Type) + "=@ID";
+            return "DELETE FROM " + CX.SqlQuoteId(_Dataset.TableName, _Dataset.Database.Type)
+                + " WHERE " + CX.SqlQuoteId("ID", _Dataset.Database.Type) + "=@ID";
         }
 
         /// <summary>Return string containing SQL parameterized syntax for dataset insert command.
         /// Require use of unique id field (ID).</summary>
         public static string InsertCommand(CXDataset _Dataset)
         {
-            string q = "";
+            string comma = "";
             StringBuilder r = new StringBuilder(), v = new StringBuilder();
             r.Append("INSERT INTO ");
-            r.Append(XSql.QuoteIdentifier(_Dataset.TableName, _Dataset.Database.Type));
+            r.Append(CX.SqlQuoteId(_Dataset.TableName, _Dataset.Database.Type));
             r.Append(" (");
             for (int i = 0; i < _Dataset.Table.Columns.Count; i++)
             {
                 if (!_Dataset.Table.Columns[i].AutoIncrement)
                 {
-                    r.Append(q);
-                    r.Append(XSql.QuoteIdentifier(_Dataset.Table.Columns[i].ColumnName, _Dataset.Database.Type));
-                    v.Append(q);
+                    r.Append(comma);
+                    r.Append(CX.SqlQuoteId(_Dataset.Table.Columns[i].ColumnName, _Dataset.Database.Type));
+                    v.Append(comma);
                     v.Append('@');
                     v.Append(_Dataset.Table.Columns[i].ColumnName);
-                    q = ",";
+                    comma = ",";
                 }
             }
             r.Append(") VALUES(");
@@ -1076,7 +1074,7 @@ namespace codeXRAD
             }
             catch (Exception ex)
             {
-                XError.Internal(ex);
+                CX.Error(ex);
                 return null;
             }
         }
@@ -1102,7 +1100,7 @@ namespace codeXRAD
         public string FieldStr(string _FieldName, string _FormatString)
         {
             object o = Field(_FieldName);
-            if (o != null) return XFormat.Str(o.ToString(), _FormatString);
+            if (o != null) return CX.Str(o.ToString(), _FormatString);
             else return "";
         }
 
@@ -1110,7 +1108,7 @@ namespace codeXRAD
         public int FieldInt(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XStr.ToInt(o.ToString());
+            if (o != null) return CX.ToInt(o.ToString());
             else return 0;
         }
 
@@ -1118,7 +1116,7 @@ namespace codeXRAD
         public long FieldLong(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XStr.ToLong(o.ToString());
+            if (o != null) return CX.ToLong(o.ToString());
             else return 0;
         }
 
@@ -1126,7 +1124,7 @@ namespace codeXRAD
         public double FieldDouble(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XStr.ToDouble(o.ToString());
+            if (o != null) return CX.ToDouble(o.ToString());
             else return 0.0d;
         }
 
@@ -1134,7 +1132,7 @@ namespace codeXRAD
         public DateTime FieldDate(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XDate.Date(o.ToString(), XDate.DateFormat, false);
+            if (o != null) return CX.Date(o.ToString(), CX.DateFormat, false);
             else return DateTime.MinValue;
         }
 
@@ -1142,7 +1140,7 @@ namespace codeXRAD
         public DateTime FieldDateTime(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XDate.Date(o.ToString(), XDate.DateFormat, true);
+            if (o != null) return CX.Date(o.ToString(), CX.DateFormat, true);
             else return DateTime.MinValue;
         }
 
@@ -1150,7 +1148,7 @@ namespace codeXRAD
         public DateTime FieldTime(string _FieldName)
         {
             object o = Field(_FieldName);
-            if (o != null) return XDate.Time(o.ToString());
+            if (o != null) return CX.Time(o.ToString());
             else return DateTime.MinValue;
         }
 
@@ -1161,7 +1159,7 @@ namespace codeXRAD
             if (o != null)
             {
                 if (o is bool) return (bool)o;
-                else return XStr.Bool(o.ToString());
+                else return CX.Bool(o.ToString());
             }
             else return false;
         }
@@ -1181,9 +1179,9 @@ namespace codeXRAD
             byte[] b;
             try
             {
-                if (XIO.FileExists(_FileName))
+                if (CX.FileExists(_FileName))
                 {
-                    b = XIO.FileLoad(_FileName);
+                    b = CX.FileLoad(_FileName);
                     if (Assign(_FieldName, b))
                     {
                         if (b != null) r = b.Length;
@@ -1195,7 +1193,7 @@ namespace codeXRAD
             catch (Exception ex)
             {
                 r = -1;
-                XError.Internal(ex);
+                CX.Error(ex);
             }
             return r;
         }
@@ -1225,7 +1223,7 @@ namespace codeXRAD
                     catch (Exception ex)
                     {
                         r = -1;
-                        XError.Internal(ex);
+                        CX.Error(ex);
                     }
                     bw.Close();
                     fs.Close();
@@ -1236,7 +1234,7 @@ namespace codeXRAD
             catch (Exception ex)
             {
                 r = -1;
-                XError.Internal(ex);
+                CX.Error(ex);
             }
             return r;
         }
@@ -1290,7 +1288,7 @@ namespace codeXRAD
         {
             int i;
             bool r = false;
-            string s = XTag.Extract(Clipboard.GetText(), "xdataset", "\t");
+            string s = CX.Extract(Clipboard.GetText(), "xdataset", "\t");
             if (s.Length > 0)
             {
                 i = Table.Columns.Count;
@@ -1340,7 +1338,7 @@ namespace codeXRAD
                     else if (FetchDelay == 0) FetchTimerTick(this, null);
                 }
                 else if (FetchDelay == 0) FetchTimerTick(this, null);
-                else if (FetchDelay > 0) XError.Raise("Fetch timer delay not initialized (null).", true);
+                else if (FetchDelay > 0) CX.Raise("Fetch timer delay not initialized (null).", true);
             }
         }
 
@@ -1349,7 +1347,6 @@ namespace codeXRAD
         {
             FetchTimer.Enabled = false;
             if (BindingControls.AutoBind) BindingControls.Read();
-            if (DataSetAlign != null) DataSetAlign.Open();
             if (AfterFetch != null) AfterFetch(this);
         }
 
@@ -1487,22 +1484,22 @@ namespace codeXRAD
                 {
                     if (Database.Keep())
                     {
-                        if (Database.Type == XDatabaseType.Access)
+                        if (Database.Type == CXDatabaseType.Access)
                         {
                             oleCommand = new OleDbCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
                             oleReader = oleCommand.ExecuteReader();
                         }
-                        else if (Database.Type == XDatabaseType.Sql)
+                        else if (Database.Type == CXDatabaseType.Sql)
                         {
                             sqlCommand = new SqlCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.SqlDB);
                             sqlReader = sqlCommand.ExecuteReader();
                         }
-                        else if (Database.Type == XDatabaseType.MySql)
+                        else if (Database.Type == CXDatabaseType.MySql)
                         {
                             mySqlCommand = new MySqlCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.MySqlDB);
                             mySqlReader = mySqlCommand.ExecuteReader();
                         }
-                        else if (Database.Type == XDatabaseType.DBase4)
+                        else if (Database.Type == CXDatabaseType.DBase4)
                         {
                             oleCommand = new OleDbCommand(XSql.Delimiters(XSql.Macros(_SqlQuery, Database.Type), Database.Type), Database.OleDB);
                             oleReader = oleCommand.ExecuteReader();
@@ -1518,7 +1515,7 @@ namespace codeXRAD
             }
             catch (Exception ex)
             {
-                XError.Internal(ex);
+                CX.Error(ex);
             }
             return retValue;
         }
@@ -1534,10 +1531,11 @@ namespace codeXRAD
                 {
                     if (Database.Keep())
                     {
-                        if (Database.Type == XDatabaseType.Access) retValue = oleReader.Read();
-                        else if (Database.Type == XDatabaseType.Sql) retValue = sqlReader.Read();
-                        else if (Database.Type == XDatabaseType.MySql) retValue = mySqlReader.Read();
-                        else if (Database.Type == XDatabaseType.DBase4) retValue = oleReader.Read();
+                        if (Database.Type == CXDatabaseType.Access) retValue = oleReader.Read();
+                        else if (Database.Type == CXDatabaseType.Sql) retValue = sqlReader.Read();
+                        else if (Database.Type == CXDatabaseType.MySql) retValue = mySqlReader.Read();
+                        else if (Database.Type == CXDatabaseType.PostgreSql) retValue = pgSqlReader.Read();
+                        else if (Database.Type == CXDatabaseType.DBase4) retValue = oleReader.Read();
                         if (retValue) Bof = false;
                         else Eof = true;
                     }
@@ -1545,7 +1543,7 @@ namespace codeXRAD
             }
             catch (Exception ex)
             {
-                XError.Internal(ex);
+                CX.Error(ex);
             }
             return retValue;
         }
@@ -1588,7 +1586,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    XError.Internal(ex);
+                    CX.Error(ex);
                     return false;
                 }
             }
@@ -1738,7 +1736,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    XError.Internal(ex);
+                    CX.Error(ex);
                 }
             }
             return r;
@@ -1808,7 +1806,7 @@ namespace codeXRAD
 
         /// <summary>Append to dataset all record of ds from current active. During operation
         /// gauge progress bar will be updated from-to values. Return true if succeed.</summary>
-        public bool Append(CXDataset _DataSet, bool _IgnoreErrors, XProgressEvent _ProgressEvent)
+        public bool Append(CXDataset _DataSet, bool _IgnoreErrors, CXProgressEvent _ProgressEvent)
         {
             bool r = false, stop = false;
             int i, max;
@@ -1942,7 +1940,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    XError.Internal(ex);
+                    CX.Error(ex);
                     return false;
                 }
             }
@@ -1994,7 +1992,7 @@ namespace codeXRAD
                     }
                     catch (Exception ex)
                     {
-                        XError.Internal(ex);
+                        CX.Error(ex);
                         r = false;
                     }
                     bmp.Dispose();
@@ -2005,7 +2003,7 @@ namespace codeXRAD
             }
             catch (Exception ex)
             {
-                XError.Internal(ex);
+                CX.Error(ex);
                 r = false;
             }
             return r;
@@ -2136,7 +2134,7 @@ namespace codeXRAD
                     }
                     catch (Exception ex)
                     {
-                        XError.Internal(ex);
+                        CX.Error(ex);
                         r = -1;
                     }
                 }
@@ -2206,7 +2204,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    XError.Internal(ex);
+                    CX.Error(ex);
                 }
                 if (r)
                 {
@@ -2277,7 +2275,7 @@ namespace codeXRAD
             }
             catch (Exception ex)
             {
-                XError.Internal(ex);
+                CX.Error(ex);
                 return false;
             }
         }
@@ -2408,7 +2406,7 @@ namespace codeXRAD
                 }
                 catch (Exception ex)
                 {
-                    XError.Internal(ex);
+                    CX.Error(ex);
                     XError.Error += "\r\n*** SQL STATEMENT ***\r\n" + _SqlStatement;
                     r = -1;
                 }
@@ -2472,7 +2470,7 @@ namespace codeXRAD
                     }
                     catch (Exception ex)
                     {
-                        XError.Internal(ex);
+                        CX.Error(ex);
                         r = false;
                     }
                 }

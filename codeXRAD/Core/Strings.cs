@@ -13,6 +13,7 @@
  *  ------------------------------------------------------------------------
  */
 
+using Org.BouncyCastle.Utilities;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -174,6 +175,12 @@ namespace codeXRAD
             else return Str(b);
         }
 
+        /// <summary>Returns string decoded base64.</summary>
+        static public byte[] Base64DecodeBytes(string _String)
+        {
+            return Convert.FromBase64String(_String);
+        }
+
         /// <summary>Returns string encoded base64.</summary>
         static public string Base64Encode(string _String)
         {
@@ -183,6 +190,20 @@ namespace codeXRAD
                 b = TextEncoding.GetBytes(_String);
                 if (b == null) return "";
                 else return Convert.ToBase64String(b);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        /// <summary>Returns string encoded base64.</summary>
+        static public string Base64EncodeBytes(byte[] _Bytes)
+        {
+            try
+            {
+                if (_Bytes == null) return "";
+                else return Convert.ToBase64String(_Bytes);
             }
             catch
             {
