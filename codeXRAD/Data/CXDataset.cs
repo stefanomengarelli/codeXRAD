@@ -333,6 +333,11 @@ namespace codeXRAD
         /// <summary>Get internal dataset.</summary>
         public DataSet InternalDataSet { get; private set; }
 
+        /// <summary>Get or set private connection flag.</summary>
+        [Browsable(true)]
+        [Description("Get or set private connection flag.")]
+        public bool PrivateConnection { get; set; }
+
         /// <summary>Contains the text of the SQL statement to execute for the dataset.</summary>
         [Browsable(true)]
         [Description("Contains the text of the SQL statement to execute for the dataset.")]
@@ -455,6 +460,7 @@ namespace codeXRAD
             pgSqlBuilder = null;
             pgSqlCommand = null;
             pgSqlReader = null;
+            PrivateConnection = false;
             Query = "";
             readOnly = true;
             RecordIndex = -1;
@@ -744,6 +750,7 @@ namespace codeXRAD
                 if (BeforeOpen != null) BeforeOpen(this, ref cancel);
                 if (!cancel)
                 {
+                    Query = _SqlSelectQuery;
                     adaptedQuery = CX.SqlDelimiters(CX.SqlMacros(_SqlSelectQuery, Database.Type), Database.Type);
                     if (_ReadOnly) readOnly = true;
                     else readOnly = CX.Btw(adaptedQuery.ToLower(), " from ", " on ").IndexOf("join") > -1;
@@ -877,7 +884,15 @@ namespace codeXRAD
         public bool OpenDatabase()
         {
             bool r = false;
-            if (alias.Trim().Length > 0) Database = CXDatabase.Keep(alias);
+            if (alias.Trim().Length > 0)
+            {
+                if (PrivateConnection)
+                {
+                    if (Database==null) Database = CXDatabase.New(alias);
+                    else Database.Keep();
+                }
+                else Database = CXDatabase.Keep(alias);
+            }
             else if (Database != null) Database.Keep();
             if (Database == null) CX.Raise("Null database error.", false);
             else

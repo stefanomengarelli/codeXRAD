@@ -19,6 +19,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.OleDb;
 using System.Data.SqlClient;
+using System.Linq.Expressions;
 
 namespace codeXRAD
 {
@@ -748,6 +749,29 @@ namespace codeXRAD
             string f = CX.Combine(CX.DataPath, CX.ExecutableName, "lck");
             if (CX.FileExists(f)) return CX.FileDate(f) > DateTime.Now.AddHours(-4);
             else return false;
+        }
+
+        /// <summary>If exists alias definition create new database and try to open it. Returns database instance if succeed.</summary>
+        public static CXDatabase New(string _Alias, string _DatabaseTemplate = "")
+        {
+            CXDatabase r = null;
+            _Alias = _Alias.Trim().ToUpper();
+            if (_Alias.Length > 0)
+            {
+                r = new CXDatabase();
+                if (r.Load("", _Alias))
+                {
+                    r.Alias = _Alias;
+                    r.Template = _DatabaseTemplate;
+                    r.Keep();
+                }
+                else
+                {
+                    r.Dispose();
+                    r = null;
+                }
+            }
+            return r;
         }
 
         /// <summary>Close, release and remove alias database to collection. Return true if succeed.</summary>

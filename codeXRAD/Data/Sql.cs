@@ -160,6 +160,31 @@ namespace codeXRAD
                 else if (_DataColumn.DataType == System.Type.GetType("System.Byte[]")) return "MEDIUMBLOB";
                 else return "VARCHAR(255)";
             }
+            else if (_Type == CXDatabaseType.PostgreSql)
+            {
+                if (_DataColumn.AutoIncrement) return "BIGSERIAL";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Boolean")) return "BOOLEAN";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Byte")) return "SMALLINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Char")) return "VARCHAR(1)";
+                else if (_DataColumn.DataType == System.Type.GetType("System.DateTime")) return "TIMESTAMP";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Decimal")) return "DECIMAL";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Double")) return "DOUBLE PRECISION";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Int16")) return "SMALLINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Int32")) return "INTEGER";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Int64")) return "BIGINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.SByte")) return "SMALLINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Single")) return "REAL";
+                else if (_DataColumn.DataType == System.Type.GetType("System.String"))
+                {
+                    if (_DataColumn.MaxLength > 255) return "TEXT";
+                    else return "VARCHAR(" + _DataColumn.MaxLength.ToString() + ")";
+                }
+                else if (_DataColumn.DataType == System.Type.GetType("System.UInt16")) return "SMALLINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.UInt32")) return "INTEGER";
+                else if (_DataColumn.DataType == System.Type.GetType("System.UInt64")) return "BIGINT";
+                else if (_DataColumn.DataType == System.Type.GetType("System.Byte[]")) return "BYTEA";
+                else return "VARCHAR(255)";
+            }
             else return "";
         }
 
@@ -300,28 +325,15 @@ namespace codeXRAD
             return r;
         }
 
-        /// <summary>Return string with SQL expression for INSTR of expr, below database type.</summary>
-        public static string SqlInstr(string _SqlExpression, CXDatabaseType _Type)
-        {
-            if (_SqlExpression.Trim().Length > 0)
-            {
-                if (_Type == CXDatabaseType.Access) return "Instr(" + _SqlExpression + ")";
-                else if (_Type == CXDatabaseType.Sql) return "CHARINDEX(" + _SqlExpression.Trim() + ")";
-                else if (_Type == CXDatabaseType.MySql) return "INSTR(" + _SqlExpression.Trim() + ")";
-                else if (_Type == CXDatabaseType.PostgreSql) return "INSTR(" + _SqlExpression.Trim() + ")";
-                else return _SqlExpression;
-            }
-            else return "";
-        }
-
         /// <summary>Return string with SQL expression for ISNULL, below database type.</summary>
         public static string SqlIsNull(string _SqlExpression, CXDatabaseType _Type)
         {
             if (_SqlExpression.Trim().Length > 0)
             {
                 if (_Type == CXDatabaseType.Access) return "IsNull(" + _SqlExpression + ")";
-                else if (_Type == CXDatabaseType.MySql) return "(" + _SqlExpression.Trim() + ") IS NULL";
-                else if (_Type == CXDatabaseType.Sql) return "(" + _SqlExpression.Trim() + ") IS NULL";
+                else if (_Type == CXDatabaseType.Sql) return "((" + _SqlExpression.Trim() + ") IS NULL)";
+                else if (_Type == CXDatabaseType.MySql) return "((" + _SqlExpression.Trim() + ") IS NULL)";
+                else if (_Type == CXDatabaseType.PostgreSql) return "(" + _SqlExpression.Trim() + " = NULL)";
                 else return _SqlExpression;
             }
             else return "";
@@ -333,8 +345,9 @@ namespace codeXRAD
             if (_SqlExpression.Trim().Length > 0)
             {
                 if (_Type == CXDatabaseType.Access) return "LCase(" + _SqlExpression + ")";
-                else if (_Type == CXDatabaseType.MySql) return "LCASE(" + _SqlExpression.Trim() + ")";
                 else if (_Type == CXDatabaseType.Sql) return "LOWER(" + _SqlExpression.Trim() + ")";
+                else if (_Type == CXDatabaseType.MySql) return "LCASE(" + _SqlExpression.Trim() + ")";
+                else if (_Type == CXDatabaseType.PostgreSql) return "LOWER(" + _SqlExpression.Trim() + ")";
                 else return _SqlExpression;
             }
             else return "";
@@ -349,7 +362,6 @@ namespace codeXRAD
             _SqlStatement = SqlMacrosReplace(_SqlStatement, "CX_UPPER", SqlUpper("%0%", _Type), _Type);
             _SqlStatement = SqlMacrosReplace(_SqlStatement, "CX_LOWER", SqlLower("%0%", _Type), _Type);
             _SqlStatement = SqlMacrosReplace(_SqlStatement, "CX_TRIM", SqlTrim("%0%", _Type), _Type);
-            _SqlStatement = SqlMacrosReplace(_SqlStatement, "CX_INSTR", SqlInstr("%0%", _Type), _Type);
             _SqlStatement = SqlMacrosReplace(_SqlStatement, "CX_DATETIME", "%DATETIME%", _Type);
             _SqlStatement = _SqlStatement.Replace("CX_USER()", CX.Quote(CX.User()));
             _SqlStatement = _SqlStatement.Replace("CX_MACHINE()", CX.Quote(CX.Machine()));
@@ -398,7 +410,18 @@ namespace codeXRAD
                     + ':' + _Value.Second.ToString().PadLeft(2, '0')
                     + '\'';
             }
-            else 
+            else if (_Type == CXDatabaseType.PostgreSql)
+            {
+                // yyyy-mm-dd hh:nn:ss
+                return '\'' + _Value.Year.ToString().PadLeft(4, '0')
+                    + '-' + _Value.Month.ToString().PadLeft(2, '0')
+                    + '-' + _Value.Day.ToString().PadLeft(2, '0')
+                    + ' ' + _Value.Hour.ToString().PadLeft(2, '0')
+                    + ':' + _Value.Minute.ToString().PadLeft(2, '0')
+                    + ':' + _Value.Second.ToString().PadLeft(2, '0')
+                    + '\'';
+            }
+            else
             {
                 // ISO 8601 yyyy-mm-ddThh:nn:ss
                 return '\'' + _Value.Year.ToString().PadLeft(4, '0')
@@ -522,6 +545,7 @@ namespace codeXRAD
                 if (_DatabaseType == CXDatabaseType.Access) return "Trim(" + _SqlExpression + ")";
                 else if (_DatabaseType == CXDatabaseType.Sql) return "LTRIM(RTRIM(" + _SqlExpression + "))";
                 else if (_DatabaseType == CXDatabaseType.MySql) return "TRIM(" + _SqlExpression + ")";
+                else if (_DatabaseType == CXDatabaseType.PostgreSql) return "TRIM(" + _SqlExpression + ")";
                 else return _SqlExpression;
             }
             else return "";
@@ -557,6 +581,7 @@ namespace codeXRAD
                 if (_Type == CXDatabaseType.Access) return "UCase(" + _SqlExpression + ")";
                 else if (_Type == CXDatabaseType.Sql) return "UPPER(" + _SqlExpression + ")";
                 else if (_Type == CXDatabaseType.MySql) return "UCASE(" + _SqlExpression + ")";
+                else if (_Type == CXDatabaseType.PostgreSql) return "UPPER(" + _SqlExpression + ")";
                 else return _SqlExpression;
             }
             else return "";
