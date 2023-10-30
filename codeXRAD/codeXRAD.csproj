@@ -5,6 +5,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <SignAssembly>False</SignAssembly>
+    <Title>$(AssemblyName)</Title>
+    <Authors>Stefano Mengarelli</Authors>
+    <Description>.NET C# Rapid Application Development Code Library</Description>
+    <Copyright>Copyright (c) 2023 by Stefano Mengarelli - All rights reserved.</Copyright>
+    <PackageProjectUrl>https://www.codexrad.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/stefanomengarelli/codeXRAD</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>RAD, c#, .net, development, library</PackageTags>
+    <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.MD</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +30,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Docs\Icons\" />
+    <None Update="LICENSE.MD">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Update="README.MD">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
