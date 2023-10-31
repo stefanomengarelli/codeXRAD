@@ -19,6 +19,7 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.MD</PackageReadmeFile>
     <ApplicationIcon>Docs\Icons\form-design-2.ico</ApplicationIcon>
+    <Version>1.0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
