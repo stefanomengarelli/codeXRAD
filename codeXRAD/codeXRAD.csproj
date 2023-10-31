@@ -18,7 +18,12 @@
     <PackageLicenseFile>LICENSE.MD</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.MD</PackageReadmeFile>
+    <ApplicationIcon>Docs\Icons\form-design-2.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Docs\Icons\form-design-2.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNetZip" Version="1.16.0" />
